@@ -1,0 +1,12 @@
+numpy
+pandas
+scikit-learn
+imbalanced-learn
+beautifulsoup4
+lxml
+regex
+xgboost
+lightgbm
+catboost
+matplotlib
+seaborn
