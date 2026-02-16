@@ -3,18 +3,16 @@ import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-# -----------------------------
-# Load FLAN-T5 (CPU-friendly)
-# -----------------------------
+
 MODEL_NAME = "google/flan-t5-base"
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
 model.eval()
 
-# -----------------------------
-# Prompt template
-# -----------------------------
+
+# Prompt 
+
 def build_prompt(payload):
     return f"""
 Classify the following web payload into exactly one category.
@@ -37,9 +35,7 @@ Payload:
 Answer with ONLY one category name.
 """
 
-# -----------------------------
-# LLM inference
-# -----------------------------
+
 def classify_payload(payload):
     inputs = tokenizer(
         build_prompt(payload),
@@ -53,9 +49,8 @@ def classify_payload(payload):
 
     return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
-# -----------------------------
+
 # Re-categorization with checkpoints
-# -----------------------------
 def recategorize_csv(
     input_csv="data/raw/xss_dataset.csv",
     output_csv="data/processed/xss_llm_multiclass.csv",
@@ -95,15 +90,15 @@ def recategorize_csv(
 
             # Save checkpoint
             df[["Sentence", "final_label"]].to_csv(output_csv, index=False)
-            print("💾 Checkpoint saved")
+            print(" Checkpoint saved")
 
     # Final save
     df[["Sentence", "final_label"]].to_csv(output_csv, index=False)
 
-    print("✅ LLM re-categorization complete")
+    print(" LLM re-categorization complete")
     print(df["final_label"].value_counts())
 
 
-# -----------------------------
+
 if __name__ == "__main__":
     recategorize_csv()

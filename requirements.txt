@@ -1,6 +1,7 @@
 numpy
 pandas
 scikit-learn
+scipy
 imbalanced-learn
 beautifulsoup4
 lxml
