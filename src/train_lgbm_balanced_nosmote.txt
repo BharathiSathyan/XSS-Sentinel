@@ -1,0 +1,136 @@
+python -m src.train_lgbm_baseline
+============================================================
+Loading dataset...
+============================================================
+Total samples: 27264
+Class distribution (original):
+Final_Label
+Stored XSS       6816
+DOM-based XSS    6816
+Reflected XSS    6816
+Normal           6816
+Name: count, dtype: int64
+
+============================================================
+Splitting dataset (70:30)...
+============================================================
+Train size: 19084
+Test size : 8180
+
+============================================================
+Running CAXF Feature Extraction...
+============================================================
+Fitting HTML tags...
+Fitting JS events...
+Fitting URL features...
+Fitting special characters...
+Fitting keywords...
+Fitting TF-IDF...
+Transforming HTML tags...
+Transforming JS events...
+Transforming URL features...
+Transforming special characters...
+Transforming keywords...
+Transforming TF-IDF...
+Combining all features...
+Transforming HTML tags...
+Transforming JS events...
+Transforming URL features...
+Transforming special characters...
+Transforming keywords...
+Transforming TF-IDF...
+Combining all features...
+CAXF completed.
+Embedding shape (train): (19084, 5280)
+Embedding shape (test) : (8180, 5280)
+CAXF time: 34.3 seconds
+
+============================================================
+Training LightGBM...
+============================================================
+[LightGBM] [Info] Auto-choosing col-wise multi-threading, the overhead of testing was 0.391508 seconds.
+You can set `force_col_wise=true` to remove the overhead.
+[LightGBM] [Info] Total Bins 392244
+[LightGBM] [Info] Number of data points in the train set: 19084, number of used features: 5219
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+Training time: 51.34 seconds
+
+============================================================
+Evaluating model on TEST set...
+============================================================
+C:\Users\Admin\Downloads\PSGTECH\TCS\SEM 8\RSL\XSS-Sentinel\venv\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+Inference time: 0.1 seconds
+
+Accuracy: 0.9996
+
+Classification Report:
+               precision    recall  f1-score   support
+
+DOM-based XSS       1.00      1.00      1.00      2045
+       Normal       1.00      1.00      1.00      2045
+Reflected XSS       1.00      1.00      1.00      2045
+   Stored XSS       1.00      1.00      1.00      2045
+
+     accuracy                           1.00      8180
+    macro avg       1.00      1.00      1.00      8180
+ weighted avg       1.00      1.00      1.00      8180
