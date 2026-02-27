@@ -19,8 +19,8 @@ def main():
     print("Loading dataset...")
     print("=" * 60)
 
-    df = pd.read_csv("data/processed/Final_XSS_4class_BALANCED_dataset.csv")
-
+    df = pd.read_csv("data/processed/Final_XSS_4class_dataset.csv")
+    
     X = df["Sentence"].astype(str)
     y = df["Final_Label"]
 
@@ -29,6 +29,7 @@ def main():
     print(y.value_counts())
     print()
 
+    
     # ---------------------------------------------------
     # Train-Test Split (70:30)
     # ---------------------------------------------------
@@ -48,6 +49,12 @@ def main():
     print("Test size :", len(X_test))
     print()
 
+    #Overlab test
+    train_set=set(X_train)
+    test_set=set(X_test)
+
+    overlap = train_set.intersection(test_set)
+    print("Overlap Size ", len(overlap))
     # ---------------------------------------------------
     # CAXF Feature Extraction
     # ---------------------------------------------------
@@ -69,7 +76,7 @@ def main():
     print("Embedding shape (test) :", X_test_embed.shape)
     print("CAXF time:", round(end - start, 2), "seconds")
     print()
-    """
+    ""
     # ---------------------------------------------------
     # SMOTE (ONLY on training set)
     # ---------------------------------------------------
@@ -94,7 +101,7 @@ def main():
     print(pd.Series(y_train_balanced).value_counts())
     print("SMOTE time:", round(end - start, 2), "seconds")
     print()
-    """
+    
     # ---------------------------------------------------
     # LightGBM Model (FAST BASELINE)
     # ---------------------------------------------------
@@ -106,7 +113,7 @@ def main():
         objective="multiclass",
         num_class=4,
         random_state=42,
-        n_estimators=100,       # moderate
+        n_estimators=200,       # moderate
         learning_rate=0.1,
         n_jobs=-1               # use all CPU cores
     )
