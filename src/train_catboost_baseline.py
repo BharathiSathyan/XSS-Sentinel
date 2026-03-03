@@ -4,13 +4,12 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
-from imblearn.over_sampling import SMOTE
 
-from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.caxf.caxf_extractor import CAXFExtractor
+from caxf.caxf_extractor import CAXFExtractor
 
 
 def main():
@@ -20,8 +19,8 @@ def main():
     print("=" * 60)
 
     df = pd.read_csv("data/processed/Final_XSS_4class_dataset.csv")
-    df.drop_duplicates()
-    
+    df = df.drop_duplicates()  #Proper duplicate removal
+
     X = df["Sentence"].astype(str)
     y = df["Final_Label"]
 
@@ -30,7 +29,6 @@ def main():
     print(y.value_counts())
     print()
 
-    
     # ---------------------------------------------------
     # Train-Test Split (70:30)
     # ---------------------------------------------------
@@ -50,12 +48,11 @@ def main():
     print("Test size :", len(X_test))
     print()
 
-    #Overlab test
-    train_set=set(X_train)
-    test_set=set(X_test)
+    # Overlap check
+    overlap = set(X_train).intersection(set(X_test))
+    print("Overlap Size:", len(overlap))
+    print()
 
-    overlap = train_set.intersection(test_set)
-    print("Overlap Size ", len(overlap))
     # ---------------------------------------------------
     # CAXF Feature Extraction
     # ---------------------------------------------------
@@ -72,51 +69,47 @@ def main():
     X_test_embed = caxf.transform(X_test)
     end = time.time()
 
-    print("CAXF completed.")
     print("Embedding shape (train):", X_train_embed.shape)
     print("Embedding shape (test) :", X_test_embed.shape)
     print("CAXF time:", round(end - start, 2), "seconds")
     print()
-    ""
+
     # ---------------------------------------------------
-    # SMOTE (ONLY on training set)
+    # Compute Class Weights (Research-Grade)
     # ---------------------------------------------------
     print("=" * 60)
-    print("Applying SMOTE...")
+    print("Computing Class Weights...")
     print("=" * 60)
 
-    smote = SMOTE(random_state=42)
+    class_counts = y_train.value_counts()
+    total_samples = len(y_train)
+    num_classes = len(class_counts)
 
-    start = time.time()
-    X_train_balanced, y_train_balanced = smote.fit_resample(
-        X_train_embed,
-        y_train
-    )
-    end = time.time()
+    class_weights = {
+        cls: total_samples / (num_classes * count)
+        for cls, count in class_counts.items()
+    }
 
-    print("SMOTE completed.")
-    print("Before SMOTE:")
-    print(y_train.value_counts())
+    print("Class Weights:")
+    for k, v in class_weights.items():
+        print(f"{k}: {round(v, 3)}")
     print()
-    print("After SMOTE:")
-    print(pd.Series(y_train_balanced).value_counts())
-    print("SMOTE time:", round(end - start, 2), "seconds")
-    print()
-    
+
     # ---------------------------------------------------
-    # LightGBM Model (FAST BASELINE)
+    # CatBoost Model (Recommended Configuration)
     # ---------------------------------------------------
     print("=" * 60)
-    print("Training LightGBM...")
+    print("Training CatBoost (Research Mode)...")
     print("=" * 60)
 
-    model = LGBMClassifier(
-        objective="multiclass",
-        num_class=4,
-        random_state=42,
-        n_estimators=200,       # moderate
-        learning_rate=0.1,
-        n_jobs=-1               # use all CPU cores
+    model = CatBoostClassifier(
+        loss_function="MultiClass",
+        random_seed=42,
+        iterations=300,
+        learning_rate=0.05,
+        depth=6,
+        class_weights=class_weights,
+        verbose=False
     )
 
     start = time.time()
@@ -153,8 +146,15 @@ def main():
     cm = confusion_matrix(y_test, y_pred)
 
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.title("Confusion Matrix - LightGBM (CAXF)")
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=model.classes_,
+        yticklabels=model.classes_
+    )
+    plt.title("Confusion Matrix - CatBoost (CAXF)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

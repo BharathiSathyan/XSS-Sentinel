@@ -5,3 +5,11 @@ venv/
 # Python cache / bytecode
 __pycache__/
 *.py[cod]
+
+# CatBoost artifacts
+catboost_info/
+catboost_training.json
+learn_error.tsv
+time_left.tsv
+events.out.tfevents*
+cat_feature_index*.json

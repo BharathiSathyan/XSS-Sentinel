@@ -4,13 +4,14 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
 from imblearn.over_sampling import SMOTE
 
-from lightgbm import LGBMClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.caxf.caxf_extractor import CAXFExtractor
+from caxf.caxf_extractor import CAXFExtractor
+from xgboost import XGBClassifier
 
 
 def main():
@@ -20,17 +21,22 @@ def main():
     print("=" * 60)
 
     df = pd.read_csv("data/processed/Final_XSS_4class_dataset.csv")
-    df.drop_duplicates()
-    
+    df = df.drop_duplicates()   # ✅ FIXED
+
     X = df["Sentence"].astype(str)
     y = df["Final_Label"]
+
+    # ---------------------------------------------------
+    # Label Encoding
+    # ---------------------------------------------------
+    label_encoder = LabelEncoder()
+    y_encoded = label_encoder.fit_transform(y)
 
     print("Total samples:", len(df))
     print("Class distribution (original):")
     print(y.value_counts())
     print()
 
-    
     # ---------------------------------------------------
     # Train-Test Split (70:30)
     # ---------------------------------------------------
@@ -40,22 +46,21 @@ def main():
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
-        y,
+        y_encoded,                 # ✅ Use encoded labels
         test_size=0.3,
         random_state=42,
-        stratify=y
+        stratify=y_encoded         # ✅ Stratify properly
     )
 
     print("Train size:", len(X_train))
     print("Test size :", len(X_test))
     print()
 
-    #Overlab test
-    train_set=set(X_train)
-    test_set=set(X_test)
+    # Overlap check
+    overlap = set(X_train).intersection(set(X_test))
+    print("Overlap Size:", len(overlap))
+    print()
 
-    overlap = train_set.intersection(test_set)
-    print("Overlap Size ", len(overlap))
     # ---------------------------------------------------
     # CAXF Feature Extraction
     # ---------------------------------------------------
@@ -77,7 +82,7 @@ def main():
     print("Embedding shape (test) :", X_test_embed.shape)
     print("CAXF time:", round(end - start, 2), "seconds")
     print()
-    ""
+
     # ---------------------------------------------------
     # SMOTE (ONLY on training set)
     # ---------------------------------------------------
@@ -96,31 +101,36 @@ def main():
 
     print("SMOTE completed.")
     print("Before SMOTE:")
-    print(y_train.value_counts())
+    print(pd.Series(y_train).value_counts())
     print()
     print("After SMOTE:")
     print(pd.Series(y_train_balanced).value_counts())
     print("SMOTE time:", round(end - start, 2), "seconds")
     print()
-    
+
     # ---------------------------------------------------
-    # LightGBM Model (FAST BASELINE)
+    # XGBoost Model
     # ---------------------------------------------------
     print("=" * 60)
-    print("Training LightGBM...")
+    print("Training XGBoost...")
     print("=" * 60)
 
-    model = LGBMClassifier(
-        objective="multiclass",
-        num_class=4,
+    model = XGBClassifier(
+        objective="multi:softprob",
+        num_class=len(np.unique(y_encoded)),
+        eval_metric="mlogloss",
         random_state=42,
-        n_estimators=200,       # moderate
+        n_estimators=200,
         learning_rate=0.1,
-        n_jobs=-1               # use all CPU cores
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        n_jobs=-1,
+        tree_method="hist"
     )
 
     start = time.time()
-    model.fit(X_train_embed, y_train)
+    model.fit(X_train_balanced, y_train_balanced)  # ✅ Balanced data
     end = time.time()
 
     print("Training time:", round(end - start, 2), "seconds")
@@ -134,27 +144,33 @@ def main():
     print("=" * 60)
 
     start = time.time()
-    y_pred = model.predict(X_test_embed)
+    y_pred_encoded = model.predict(X_test_embed)
     end = time.time()
 
     print("Inference time:", round(end - start, 2), "seconds")
     print()
 
-    print("Accuracy:", round(accuracy_score(y_test, y_pred), 4))
+    # Decode labels for readable output
+    y_test_labels = label_encoder.inverse_transform(y_test)
+    y_pred_labels = label_encoder.inverse_transform(y_pred_encoded)
+
+    print("Accuracy:", round(accuracy_score(y_test_labels, y_pred_labels), 4))
     print()
 
     print("Classification Report:")
-    print(classification_report(y_test, y_pred))
+    print(classification_report(y_test_labels, y_pred_labels))
     print()
 
     # ---------------------------------------------------
     # Confusion Matrix
     # ---------------------------------------------------
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test_labels, y_pred_labels)
 
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.title("Confusion Matrix - LightGBM (CAXF)")
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=label_encoder.classes_,
+                yticklabels=label_encoder.classes_)
+    plt.title("Confusion Matrix - XGBoost (CAXF)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
