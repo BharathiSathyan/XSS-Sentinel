@@ -1,0 +1,174 @@
+XSS-Sentinel Project
+Baseline Model Benchmark Results
+Feature Extraction: CAXF
+Dataset: Final_XSS_4class_dataset.csv (Deduplicated)
+
+---
+
+## DATASET INFORMATION
+
+Total Samples: 10,917
+
+Class Distribution:
+Reflected XSS : 6,795
+Normal        : 3,594
+Stored XSS    : 498
+DOM-based XSS : 30
+
+Train-Test Split:
+Train Size: 7,641
+Test Size : 3,276
+Split Ratio: 70:30
+
+Duplicate Removal: Applied (Sentence + Label)
+Train/Test Leakage: None (Overlap = 0)
+
+---
+
+## PIPELINE CONFIGURATION
+
+1. Dataset Loading
+2. Deduplication (performed offline)
+3. Train/Test Split (70/30)
+4. CAXF Feature Extraction
+5. SMOTE applied ONLY on training set
+6. Model Training
+7. Evaluation on untouched test set
+
+---
+
+## FEATURE EXTRACTION (CAXF)
+
+Features used:
+
+* HTML Tag Features
+* JavaScript Event Features
+* URL Pattern Features
+* Special Character Features
+* XSS Keyword Features
+* Character-level TF-IDF (3–5 grams)
+
+Final Feature Dimension: ~5282
+
+Average Feature Extraction Time: ~8–17 seconds
+
+---
+
+## MODEL CONFIGURATIONS
+
+LightGBM Baseline
+
+objective = multiclass
+num_class = 4
+n_estimators = 100
+learning_rate = 0.1
+random_state = 42
+n_jobs = -1
+
+XGBoost Baseline
+
+objective = multi:softprob
+num_class = 4
+n_estimators = 100
+learning_rate = 0.1
+max_depth = 6
+subsample = 0.8
+colsample_bytree = 0.8
+tree_method = hist
+random_state = 42
+
+CatBoost Baseline
+
+loss_function = MultiClass
+iterations = 100
+learning_rate = 0.1
+depth = 6
+random_seed = 42
+
+Class weights used to handle imbalance.
+
+---
+
+## LIGHTGBM RESULTS
+
+Accuracy: 0.9951
+
+Precision Recall F1 Support
+
+DOM-based XSS   0.57 0.89 0.70 9
+Normal          1.00 0.99 0.99 1079
+Reflected XSS   1.00 1.00 1.00 2039
+Stored XSS      0.97 0.97 0.97 149
+
+Macro Average F1 : 0.91
+
+Training Time : 64.85 seconds
+Inference Time: 0.15 seconds
+
+---
+
+## XGBOOST RESULTS
+
+Accuracy: 0.9960
+
+Precision Recall F1 Support
+
+DOM-based XSS   0.57 0.89 0.70 9
+Normal          1.00 0.99 1.00 1079
+Reflected XSS   1.00 1.00 1.00 2039
+Stored XSS      0.97 0.99 0.98 149
+
+Macro Average F1 : 0.92
+
+Training Time : 210.4 seconds
+Inference Time: 0.12 seconds
+
+---
+
+## CATBOOST RESULTS
+
+Accuracy: 0.9902
+
+Precision Recall F1 Support
+
+DOM-based XSS   0.44 0.78 0.56 9
+Normal          0.99 0.99 0.99 1079
+Reflected XSS   1.00 0.99 1.00 2039
+Stored XSS      0.90 0.95 0.93 149
+
+Macro Average F1 : 0.87
+
+Training Time : 726.02 seconds
+Inference Time: 0.16 seconds
+
+---
+
+## BASELINE MODEL COMPARISON
+
+## Model        Accuracy   Macro F1   DOM F1   Stored F1   Train Time
+
+LightGBM     0.9951     0.91       0.70     0.97        64s
+XGBoost      0.9960     0.92       0.70     0.98        210s
+CatBoost     0.9902     0.87       0.56     0.93        726s
+
+---
+
+## PAPER FORMAT METRICS (Comparable to Table 3)
+
+## Classifier    Accuracy   Precision   Recall   Average F1
+
+LightGBM        0.9951      0.9950      0.9960    0.9950
+XGBoost         0.9960      0.9961      0.9960    0.9960
+CatBoost        0.9902      0.9898      0.9900    0.9900
+
+---
+
+## OBSERVATIONS
+
+1. XGBoost achieved the best overall Macro F1 score.
+2. LightGBM achieved similar performance with significantly lower training time.
+3. CatBoost performed slightly worse due to extreme class imbalance.
+4. DOM-based XSS detection remains the most challenging due to extremely small sample size.
+5. Ensemble methods (LCCDE) are expected to further improve minority class detection.
+
+---

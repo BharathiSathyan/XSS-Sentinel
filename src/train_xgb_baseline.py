@@ -160,6 +160,16 @@ def main():
     print("Classification Report:")
     print(classification_report(y_test_labels, y_pred_labels))
     print()
+    from sklearn.metrics import precision_score, recall_score, f1_score
+
+    precision = precision_score(y_test, y_pred, average="macro")
+    recall = recall_score(y_test, y_pred, average="macro")
+    f1 = f1_score(y_test, y_pred, average="macro")
+
+    print("\nPaper Format Metrics:")
+    print("Precision:", round(precision,4))
+    print("Recall:", round(recall,4))
+    print("Average F1:", round(f1,4))
 
     # ---------------------------------------------------
     # Confusion Matrix
