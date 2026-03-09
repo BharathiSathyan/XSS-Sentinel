@@ -2,7 +2,10 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import time
 
+# tfidf
 from src.caxf.caxf_extractor import CAXFExtractor
+# sentence embedding
+# from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
 
 # Load dataset
 df = pd.read_csv("data/processed/Final_XSS_4class_BALANCED_dataset.csv")
