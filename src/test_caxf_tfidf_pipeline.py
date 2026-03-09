@@ -7,6 +7,9 @@ from src.caxf.caxf_extractor import CAXFExtractor
 # sentence embedding
 # from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
 
+# charcnn
+# from src.caxf.caxf_extractor_charcnn import CAXFExtractor
+
 # Load dataset
 df = pd.read_csv("data/processed/Final_XSS_4class_BALANCED_dataset.csv")
 
