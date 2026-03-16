@@ -72,7 +72,7 @@ def main():
 
     print("Embedding shape (train):", X_train_embed.shape)
     print("Embedding shape (test):", X_test_embed.shape)
-    print("CAXF time:", round(time.time()-start,2))
+    print("CAXF time:", round(time.time()-start,2), "seconds")
     print()
 
     # SMOTE
@@ -101,7 +101,7 @@ def main():
 
     # XGBoost Model
     print("=" * 60)
-    print("Training CatBoost...")
+    print("Training XGBoost...")
     print("=" * 60)
 
     model = XGBClassifier(
@@ -120,7 +120,7 @@ def main():
 
     start = time.time()
     model.fit(X_train_bal, y_train_bal)
-    print("Training time:", round(time.time()-start,2))
+    print("Training time:", round(time.time()-start,2), "seconds")
     print()
 
     print("="*60)
@@ -129,7 +129,7 @@ def main():
 
     start = time.time()
     y_pred = model.predict(X_test_embed)
-    print("Inference time:", round(time.time()-start,2))
+    print("Inference time:", round(time.time()-start,2), "seconds")
     print()
 
     y_test_labels = le.inverse_transform(y_test)
@@ -155,7 +155,7 @@ def main():
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_,
                 yticklabels=le.classes_)
-    plt.title("Confusion Matrix - LightGBM")
+    plt.title("Confusion Matrix - XGB")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

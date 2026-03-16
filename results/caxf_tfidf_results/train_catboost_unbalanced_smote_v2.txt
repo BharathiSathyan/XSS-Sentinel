@@ -2,7 +2,7 @@
 Loading dataset...
 ============================================================
 Total samples: 10917
-Class distribution:
+Class distribution (original):
 Final_Label
 Reflected XSS    6795
 Normal           3594
@@ -11,7 +11,7 @@ DOM-based XSS      30
 Name: count, dtype: int64
 
 ============================================================
-Splitting dataset...
+Splitting dataset (70:30)...
 ============================================================
 Train size: 7641
 Test size : 3276
@@ -19,7 +19,7 @@ Test size : 3276
 Overlap Size: 0
 
 ============================================================
-Running CAXF Feature Extraction......
+Running CAXF Feature Extraction...
 ============================================================
 Fitting HTML tags...
 Fitting JS events...
@@ -42,53 +42,38 @@ Transforming keywords...
 Transforming TF-IDF...
 Combining all features...
 Embedding shape (train): (7641, 5282)
-Embedding shape (test): (3276, 5282)
-CAXF time: 17.2 seconds
+Embedding shape (test) : (3276, 5282)
+CAXF time: 16.55 seconds
 
 ============================================================
-Applying SMOTE...
+Computing Class Weights...
 ============================================================
-Before SMOTE:
-2    4756
-1    2515
-3     349
-0      21
-Name: count, dtype: int64
-
-After SMOTE:
-1    4756
-2    4756
-3    4756
-0    4756
-Name: count, dtype: int64
-SMOTE time: 1.09 seconds
+Class Weights:
+Reflected XSS: 0.402
+Normal: 0.76
+Stored XSS: 5.473
+DOM-based XSS: 90.964
 
 ============================================================
-Training XGBoost...
+Training CatBoost (Research Mode)...
 ============================================================
-Training time: 283.54 seconds
+Training time: 196.34 seconds
 
 ============================================================
-Evaluating model...
+Evaluating model on TEST set...
 ============================================================
-Inference time: 0.13 seconds
+Inference time: 0.1 seconds
 
-Accuracy: 0.9966422466422467
+Accuracy: 0.9841
 
 Classification Report:
                precision    recall  f1-score   support
 
-DOM-based XSS       0.57      0.89      0.70         9
-       Normal       1.00      0.99      1.00      1079
-Reflected XSS       1.00      1.00      1.00      2039
-   Stored XSS       0.97      0.99      0.98       149
+DOM-based XSS       0.30      0.78      0.44         9
+       Normal       0.99      0.99      0.99      1079
+Reflected XSS       1.00      0.99      0.99      2039
+   Stored XSS       0.83      0.95      0.89       149
 
-     accuracy                           1.00      3276
-    macro avg       0.89      0.97      0.92      3276
- weighted avg       1.00      1.00      1.00      3276
-
-
-Paper Format Metrics
-Precision: 0.886
-Recall: 0.9688
-Average F1: 0.9188
+     accuracy                           0.98      3276
+    macro avg       0.78      0.92      0.83      3276
+ weighted avg       0.99      0.98      0.99      3276
