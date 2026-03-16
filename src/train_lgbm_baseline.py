@@ -12,7 +12,8 @@ from lightgbm import LGBMClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.caxf.caxf_extractor import CAXFExtractor
+# from src.caxf.caxf_extractor import CAXFExtractor
+from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
 
 
 def main():
