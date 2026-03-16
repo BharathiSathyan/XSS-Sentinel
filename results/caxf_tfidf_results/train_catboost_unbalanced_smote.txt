@@ -43,7 +43,7 @@ Transforming TF-IDF...
 Combining all features...
 Embedding shape (train): (7641, 5282)
 Embedding shape (test) : (3276, 5282)
-CAXF time: 7.06 seconds
+CAXF time: 18.36 seconds
 
 ============================================================
 Computing Class Weights...
@@ -57,23 +57,23 @@ DOM-based XSS: 90.964
 ============================================================
 Training CatBoost (Research Mode)...
 ============================================================
-Training time: 726.02 seconds
+Training time: 520.57 seconds
 
 ============================================================
 Evaluating model on TEST set...
 ============================================================
-Inference time: 0.16 seconds
+Inference time: 0.1 seconds
 
-Accuracy: 0.9902
+Accuracy: 0.9887
 
 Classification Report:
                precision    recall  f1-score   support
 
-DOM-based XSS       0.44      0.78      0.56         9
+DOM-based XSS       0.39      0.78      0.52         9
        Normal       0.99      0.99      0.99      1079
 Reflected XSS       1.00      0.99      1.00      2039
-   Stored XSS       0.90      0.95      0.93       149
+   Stored XSS       0.88      0.96      0.92       149
 
      accuracy                           0.99      3276
-    macro avg       0.83      0.93      0.87      3276
+    macro avg       0.82      0.93      0.86      3276
  weighted avg       0.99      0.99      0.99      3276

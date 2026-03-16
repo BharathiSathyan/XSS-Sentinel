@@ -107,7 +107,7 @@ def main():
         random_seed=42,
         iterations=300,
         learning_rate=0.05,
-        depth=4,
+        depth=5,
         class_weights=class_weights,
         task_type="CPU",
         thread_count=4,
