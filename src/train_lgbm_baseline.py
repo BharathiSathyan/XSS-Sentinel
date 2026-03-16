@@ -13,7 +13,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # from src.caxf.caxf_extractor import CAXFExtractor
-from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+# from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+from caxf.caxf_extractor_charcnn import CAXFExtractor
 
 
 def main():
