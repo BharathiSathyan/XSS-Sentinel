@@ -19,9 +19,13 @@ class LCCDE:
 
         final_preds = []
 
-        for i in range(len(X)):
+        for i in range(X.shape[0]):
 
-            preds = [lgbm_pred[i], xgb_pred[i], cat_pred[i]]
+            p1 = int(lgbm_pred[i])
+            p2 = int(xgb_pred[i])
+            p3 = int(np.array(cat_pred[i]).flatten()[0])
+
+            preds = [p1, p2, p3]
 
             # Case 1: all agree
             if preds.count(preds[0]) == 3:
@@ -35,13 +39,12 @@ class LCCDE:
 
             # Case 3: all disagree
             probs = [
-                max(lgbm_prob[i]),
-                max(xgb_prob[i]),
-                max(cat_prob[i])
+                lgbm_prob[i][p1],
+                xgb_prob[i][p2],
+                cat_prob[i][p3]
             ]
 
             best_model = np.argmax(probs)
-
             final_preds.append(preds[best_model])
 
         return np.array(final_preds)
