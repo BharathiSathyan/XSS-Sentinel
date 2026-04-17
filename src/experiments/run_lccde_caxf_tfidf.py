@@ -14,7 +14,7 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor import CAXFExtractor
+from caxf.caxf_extractor_tfidf import CAXFExtractor
 from src.ensemble.lccde import LCCDE
 
 

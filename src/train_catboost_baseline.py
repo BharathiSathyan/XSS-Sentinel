@@ -4,6 +4,7 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 from catboost import CatBoostClassifier
 import seaborn as sns
@@ -143,6 +144,15 @@ def main():
     print("Classification Report:")
     print(classification_report(y_test, y_pred))
     print()
+
+    precision = precision_score(y_test, y_pred, average="macro")
+    recall = recall_score(y_test, y_pred, average="macro")
+    f1 = f1_score(y_test, y_pred, average="macro")
+
+    print("\nPaper Format Metrics")
+    print("Precision:", round(precision,4))
+    print("Recall:", round(recall,4))
+    print("Average F1:", round(f1,4))
 
     # ---------------------------------------------------
     # Confusion Matrix

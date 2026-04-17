@@ -85,7 +85,7 @@ Evaluating model...
 ============================================================
 Inference time: 0.05 seconds
 
-Accuracy: 0.996947496947497
+Accuracy: 0.9970
 
 Classification Report:
                precision    recall  f1-score   support

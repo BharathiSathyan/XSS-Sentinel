@@ -77,3 +77,8 @@ Reflected XSS       1.00      0.99      1.00      2039
      accuracy                           0.99      3276
     macro avg       0.82      0.93      0.86      3276
  weighted avg       0.99      0.99      0.99      3276
+
+Paper Format Metrics
+Precision: 0.8192
+Recall: 0.9258
+Average F1: 0.8601

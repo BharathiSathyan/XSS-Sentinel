@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 import time
 
 # tfidf
-from src.caxf.caxf_extractor import CAXFExtractor
+from caxf.caxf_extractor_tfidf import CAXFExtractor
 # sentence embedding
 # from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
 
