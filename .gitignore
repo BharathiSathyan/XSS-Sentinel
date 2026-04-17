@@ -13,3 +13,7 @@ learn_error.tsv
 time_left.tsv
 events.out.tfevents*
 cat_feature_index*.json
+
+#Cache Models and Checkpoints
+*.pkl
+*.npy
