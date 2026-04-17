@@ -9,7 +9,9 @@ from catboost import CatBoostClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from caxf.caxf_extractor import CAXFExtractor
+## from src.caxf.caxf_extractor import CAXFExtractor
+from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+from caxf.caxf_extractor_charcnn import CAXFExtractor
 
 
 def main():
@@ -107,8 +109,10 @@ def main():
         random_seed=42,
         iterations=300,
         learning_rate=0.05,
-        depth=6,
+        depth=5,
         class_weights=class_weights,
+        task_type="CPU",
+        thread_count=4,
         verbose=False
     )
 
@@ -139,16 +143,6 @@ def main():
     print("Classification Report:")
     print(classification_report(y_test, y_pred))
     print()
-    from sklearn.metrics import precision_score, recall_score, f1_score
-
-    precision = precision_score(y_test, y_pred, average="macro")
-    recall = recall_score(y_test, y_pred, average="macro")
-    f1 = f1_score(y_test, y_pred, average="macro")
-
-    print("\nPaper Format Metrics:")
-    print("Precision:", round(precision,4))
-    print("Recall:", round(recall,4))
-    print("Average F1:", round(f1,4))
 
     # ---------------------------------------------------
     # Confusion Matrix

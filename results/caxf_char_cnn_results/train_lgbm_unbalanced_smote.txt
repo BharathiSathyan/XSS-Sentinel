@@ -11,7 +11,7 @@ DOM-based XSS      30
 Name: count, dtype: int64
 
 ============================================================
-Splitting dataset...
+Splitting dataset (70:30)...
 ============================================================
 Train size: 7641
 Test size : 3276
@@ -19,31 +19,29 @@ Test size : 3276
 Overlap Size: 0
 
 ============================================================
-Running CAXF Feature Extraction......
+Running CAXF Feature Extraction...
 ============================================================
 Fitting HTML tags...
 Fitting JS events...
 Fitting URL features...
 Fitting special characters...
 Fitting keywords...
-Fitting TF-IDF...
+Initializing CharCNN embedding...
 Transforming HTML tags...
 Transforming JS events...
 Transforming URL features...
 Transforming special characters...
 Transforming keywords...
-Transforming TF-IDF...
-Combining all features...
+Generating CharCNN embeddings...
 Transforming HTML tags...
 Transforming JS events...
 Transforming URL features...
 Transforming special characters...
 Transforming keywords...
-Transforming TF-IDF...
-Combining all features...
-Embedding shape (train): (7641, 5282)
-Embedding shape (test): (3276, 5282)
-CAXF time: 17.2 seconds
+Generating CharCNN embeddings...
+Embedding shape (train): (7641, 410)
+Embedding shape (test): (3276, 410)
+CAXF time: 8.31 seconds
 
 ============================================================
 Applying SMOTE...
@@ -61,34 +59,45 @@ After SMOTE:
 3    4756
 0    4756
 Name: count, dtype: int64
-SMOTE time: 1.09 seconds
+SMOTE time: 1.08 seconds
 
 ============================================================
-Training XGBoost...
+Training LightGBM...
 ============================================================
-Training time: 283.54 seconds
+[LightGBM] [Info] Auto-choosing col-wise multi-threading, the overhead of testing was 0.041587 seconds.
+You can set `force_col_wise=true` to remove the overhead.
+[LightGBM] [Info] Total Bins 44074
+[LightGBM] [Info] Number of data points in the train set: 19024, number of used features: 364
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Info] Start training from score -1.386294
+[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
+
+Training time: 12.63 seconds
 
 ============================================================
 Evaluating model...
 ============================================================
-Inference time: 0.13 seconds
 
-Accuracy: 0.9966422466422467
+Inference time: 0.08 seconds
+
+Accuracy: 0.9957
 
 Classification Report:
                precision    recall  f1-score   support
 
-DOM-based XSS       0.57      0.89      0.70         9
-       Normal       1.00      0.99      1.00      1079
+DOM-based XSS       0.89      0.89      0.89         9
+       Normal       0.99      1.00      0.99      1079
 Reflected XSS       1.00      1.00      1.00      2039
-   Stored XSS       0.97      0.99      0.98       149
+   Stored XSS       0.99      0.95      0.97       149
 
      accuracy                           1.00      3276
-    macro avg       0.89      0.97      0.92      3276
+    macro avg       0.97      0.96      0.96      3276
  weighted avg       1.00      1.00      1.00      3276
 
 
 Paper Format Metrics
-Precision: 0.886
-Recall: 0.9688
-Average F1: 0.9188
+Precision: 0.9678
+Recall: 0.9581
+Average F1: 0.9628

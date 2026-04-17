@@ -1,0 +1,91 @@
+============================================================
+Loading dataset...
+============================================================
+Total samples: 10917
+Class distribution (original):
+Final_Label
+Reflected XSS    6795
+Normal           3594
+Stored XSS        498
+DOM-based XSS      30
+Name: count, dtype: int64
+
+============================================================
+Splitting dataset (70:30)...
+============================================================
+Train size: 7641
+Test size : 3276
+
+Overlap Size: 0
+
+============================================================
+Running CAXF Feature Extraction...
+============================================================
+Loading Sentence Transformer model...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████| 103/103 [00:00<00:00, 1218.58it/s]
+BertModel LOAD REPORT from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  |
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  |
+
+Notes:
+- UNEXPECTED    :can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Fitting HTML tags...
+Fitting JS events...
+Fitting URL features...
+Fitting special characters...
+Fitting keywords...
+Initializing sentence embedding model...
+Transforming HTML tags...
+Transforming JS events...
+Transforming URL features...
+Transforming special characters...
+Transforming keywords...
+Generating sentence embeddings...
+Batches: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████| 120/120 [01:56<00:00,  1.03it/s]
+Combining all features...
+Transforming HTML tags...
+Transforming JS events...
+Transforming URL features...
+Transforming special characters...
+Transforming keywords...
+Generating sentence embeddings...
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████| 52/52 [00:51<00:00,  1.00it/s]
+Combining all features...
+Embedding shape (train): (7641, 666)
+Embedding shape (test) : (3276, 666)
+CAXF time: 176.93 seconds
+
+============================================================
+Computing Class Weights...
+============================================================
+Class Weights:
+Reflected XSS: 0.402
+Normal: 0.76
+Stored XSS: 5.473
+DOM-based XSS: 90.964
+
+============================================================
+Training CatBoost (Research Mode)...
+============================================================
+Training time: 71.8 seconds
+
+============================================================
+Evaluating model on TEST set...
+============================================================
+Inference time: 0.1 seconds
+
+Accuracy: 0.993
+
+Classification Report:
+               precision    recall  f1-score   support
+
+DOM-based XSS       0.64      0.78      0.70         9
+       Normal       0.99      1.00      1.00      1079
+Reflected XSS       1.00      0.99      1.00      2039
+   Stored XSS       0.92      0.95      0.94       149
+
+     accuracy                           0.99      3276
+    macro avg       0.89      0.93      0.91      3276
+ weighted avg       0.99      0.99      0.99      3276

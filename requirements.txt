@@ -10,3 +10,4 @@ lightgbm
 catboost
 matplotlib
 seaborn
+sentence-transformers

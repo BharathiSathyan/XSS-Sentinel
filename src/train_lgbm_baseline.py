@@ -3,14 +3,18 @@ import pandas as pd
 import numpy as np
 
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from sklearn.metrics import precision_score, recall_score, f1_score
 from imblearn.over_sampling import SMOTE
 
 from lightgbm import LGBMClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.caxf.caxf_extractor import CAXFExtractor
+# from src.caxf.caxf_extractor import CAXFExtractor
+# from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+from caxf.caxf_extractor_charcnn import CAXFExtractor
 
 
 def main():
@@ -20,45 +24,42 @@ def main():
     print("=" * 60)
 
     df = pd.read_csv("data/processed/Final_XSS_4class_dataset.csv")
-    df.drop_duplicates()
-    
+    df = df.drop_duplicates()
+
     X = df["Sentence"].astype(str)
     y = df["Final_Label"]
 
     print("Total samples:", len(df))
-    print("Class distribution (original):")
+    print("Class distribution:")
     print(y.value_counts())
     print()
 
-    
-    # ---------------------------------------------------
-    # Train-Test Split (70:30)
-    # ---------------------------------------------------
+    # Label Encoding
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y)
+
+    # Train Test Split
     print("=" * 60)
     print("Splitting dataset (70:30)...")
     print("=" * 60)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
-        y,
+        y_encoded,
         test_size=0.3,
         random_state=42,
-        stratify=y
+        stratify=y_encoded
     )
 
     print("Train size:", len(X_train))
     print("Test size :", len(X_test))
     print()
 
-    #Overlab test
-    train_set=set(X_train)
-    test_set=set(X_test)
+    overlap = set(X_train).intersection(set(X_test))
+    print("Overlap Size:", len(overlap))
+    print()
 
-    overlap = train_set.intersection(test_set)
-    print("Overlap Size ", len(overlap))
-    # ---------------------------------------------------
-    # CAXF Feature Extraction
-    # ---------------------------------------------------
+    # Feature Extraction
     print("=" * 60)
     print("Running CAXF Feature Extraction...")
     print("=" * 60)
@@ -66,21 +67,17 @@ def main():
     caxf = CAXFExtractor()
 
     start = time.time()
-    caxf.fit(X_train)
 
+    caxf.fit(X_train)
     X_train_embed = caxf.transform(X_train)
     X_test_embed = caxf.transform(X_test)
-    end = time.time()
 
-    print("CAXF completed.")
     print("Embedding shape (train):", X_train_embed.shape)
-    print("Embedding shape (test) :", X_test_embed.shape)
-    print("CAXF time:", round(end - start, 2), "seconds")
+    print("Embedding shape (test):", X_test_embed.shape)
+    print("CAXF time:", round(time.time() - start, 2), "seconds")
     print()
-    ""
-    # ---------------------------------------------------
-    # SMOTE (ONLY on training set)
-    # ---------------------------------------------------
+
+    # SMOTE
     print("=" * 60)
     print("Applying SMOTE...")
     print("=" * 60)
@@ -88,83 +85,76 @@ def main():
     smote = SMOTE(random_state=42)
 
     start = time.time()
-    X_train_balanced, y_train_balanced = smote.fit_resample(
+
+    X_train_bal, y_train_bal = smote.fit_resample(
         X_train_embed,
         y_train
     )
-    end = time.time()
 
-    print("SMOTE completed.")
     print("Before SMOTE:")
-    print(y_train.value_counts())
+    print(pd.Series(y_train).value_counts())
     print()
+
     print("After SMOTE:")
-    print(pd.Series(y_train_balanced).value_counts())
-    print("SMOTE time:", round(end - start, 2), "seconds")
+    print(pd.Series(y_train_bal).value_counts())
+
+    print("SMOTE time:", round(time.time() - start, 2), "seconds")
     print()
-    
-    # ---------------------------------------------------
-    # LightGBM Model (FAST BASELINE)
-    # ---------------------------------------------------
+
+    # LightGBM Model
     print("=" * 60)
     print("Training LightGBM...")
     print("=" * 60)
 
     model = LGBMClassifier(
         objective="multiclass",
-        num_class=4,
+        num_class=len(np.unique(y_encoded)),
         random_state=42,
-        n_estimators=200,       # moderate
+        n_estimators=200,
         learning_rate=0.1,
-        n_jobs=-1               # use all CPU cores
+        n_jobs=-1
     )
 
     start = time.time()
-    model.fit(X_train_embed, y_train)
-    end = time.time()
-
-    print("Training time:", round(end - start, 2), "seconds")
+    model.fit(X_train_bal, y_train_bal)
+    print("Training time:", round(time.time() - start, 2), "seconds")
     print()
 
-    # ---------------------------------------------------
     # Evaluation
-    # ---------------------------------------------------
     print("=" * 60)
-    print("Evaluating model on TEST set...")
+    print("Evaluating model...")
     print("=" * 60)
 
     start = time.time()
     y_pred = model.predict(X_test_embed)
-    end = time.time()
-
-    print("Inference time:", round(end - start, 2), "seconds")
+    print("Inference time:", round(time.time() - start, 2), "seconds")
     print()
 
-    print("Accuracy:", round(accuracy_score(y_test, y_pred), 4))
+    y_test_labels = le.inverse_transform(y_test)
+    y_pred_labels = le.inverse_transform(y_pred)
+
+    print("Accuracy:", round(accuracy_score(y_test_labels, y_pred_labels), 4))
     print()
 
     print("Classification Report:")
-    print(classification_report(y_test, y_pred))
-    print()
-    from sklearn.metrics import precision_score, recall_score, f1_score
+    print(classification_report(y_test_labels, y_pred_labels))
 
     precision = precision_score(y_test, y_pred, average="macro")
     recall = recall_score(y_test, y_pred, average="macro")
     f1 = f1_score(y_test, y_pred, average="macro")
 
-    print("\nPaper Format Metrics:")
+    print("\nPaper Format Metrics")
     print("Precision:", round(precision,4))
     print("Recall:", round(recall,4))
     print("Average F1:", round(f1,4))
 
-    # ---------------------------------------------------
-    # Confusion Matrix
-    # ---------------------------------------------------
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test_labels, y_pred_labels)
 
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.title("Confusion Matrix - LightGBM (CAXF)")
+    plt.figure(figsize=(6,5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=le.classes_,
+                yticklabels=le.classes_)
+    plt.title("Confusion Matrix - LightGBM")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
