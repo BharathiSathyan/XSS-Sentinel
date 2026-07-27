@@ -1,5 +1,5 @@
 ============================================================
-LCCDE ENSEMBLE PIPELINE — CAXF TF-IDF
+LCCDE ENSEMBLE PIPELINE — CAXF SENTENCE EMBEDDING
 ============================================================
 Loading dataset...
 ============================================================
@@ -20,12 +20,12 @@ Test size : 3276
 Overlap Size: 0
 
 ============================================================
-Running CAXF Feature Extraction (TF-IDF)...
+Running CAXF Feature Extraction (Sentence Embedding)...
 ============================================================
 Saved embeddings checkpoint.
-Embedding shape (train): (7641, 5282)
-Embedding shape (test) : (3276, 5282)
-CAXF time: 23.37 seconds
+Embedding shape (train): (7641, 666)
+Embedding shape (test) : (3276, 666)
+CAXF time: 202.01 seconds
 
 ============================================================
 Applying SMOTE...
@@ -43,7 +43,7 @@ After SMOTE:
 3    4756
 0    4756
 Name: count, dtype: int64
-SMOTE time: 13.92 seconds
+SMOTE time: 5.88 seconds
 
 Training LightGBM...
 Training XGBoost...
@@ -51,23 +51,23 @@ Training CatBoost...
 ============================================================
 Evaluating LCCDE Ensemble...
 ============================================================
-LCCDE Inference time: 1.0579 seconds
+LCCDE Inference time: 0.2149 seconds
 
-Accuracy: 0.9966
+Accuracy: 0.9957
 
 Classification Report:
                precision    recall  f1-score   support
 
-DOM-based XSS       0.80      0.89      0.84         9
-       Normal       1.00      1.00      1.00      1079
+DOM-based XSS       1.00      0.78      0.88         9
+       Normal       0.99      1.00      1.00      1079
 Reflected XSS       1.00      1.00      1.00      2039
-   Stored XSS       0.97      0.97      0.97       149
+   Stored XSS       0.97      0.96      0.96       149
 
      accuracy                           1.00      3276
-    macro avg       0.94      0.96      0.95      3276
+    macro avg       0.99      0.93      0.96      3276
  weighted avg       1.00      1.00      1.00      3276
 
 Paper Format Metrics
-Precision: 0.9408
-Recall: 0.9644
-Average F1: 0.9521
+Precision: 0.9895
+Recall: 0.9335
+Average F1: 0.958

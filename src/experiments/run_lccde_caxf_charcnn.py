@@ -20,15 +20,15 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor_tfidf import CAXFExtractor
+from src.caxf.caxf_extractor_charcnn import CAXFExtractor
 from src.ensemble.lccde import LCCDE
 
 # ===============================
 # PATHS & CONFIG
 # ===============================
 DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-CACHE_DIR = "results/cache/tfidf"
-OUTPUT_DIR = "results/caxf_tfidf_results"
+CACHE_DIR = "results/cache/charcnn"
+OUTPUT_DIR = "results/caxf_char_cnn_results"
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -43,7 +43,7 @@ def main():
         log_lines.append(msg)
 
     log("="*60)
-    log("LCCDE ENSEMBLE PIPELINE — CAXF TF-IDF")
+    log("LCCDE ENSEMBLE PIPELINE — CAXF CHAR-CNN")
     log("="*60)
     log("Loading dataset...")
     log("="*60)
@@ -84,13 +84,13 @@ def main():
     cache_test_emb = f"{CACHE_DIR}/X_test_embed.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached TF-IDF embeddings...")
+        log("⚡ Loading cached CharCNN embeddings...")
         X_train_embed = np.load(cache_train_emb)
         X_test_embed = np.load(cache_test_emb)
         caxf_time = 0.0
     else:
         log("="*60)
-        log("Running CAXF Feature Extraction (TF-IDF)...")
+        log("Running CAXF Feature Extraction (CharCNN)...")
         log("="*60)
         start = time.time()
         caxf = CAXFExtractor()
@@ -106,7 +106,7 @@ def main():
         np.save(cache_train_emb, X_train_embed)
         np.save(cache_test_emb, X_test_embed)
         caxf_time = round(time.time() - start, 2)
-        log(f"Saved embeddings checkpoint.")
+        log("Saved embeddings checkpoint.")
 
     X_train_embed = X_train_embed.astype(np.float32)
     X_test_embed = X_test_embed.astype(np.float32)
@@ -228,7 +228,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix - LCCDE (CAXF TF-IDF)")
+    plt.title("Confusion Matrix - LCCDE (CAXF CharCNN)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
