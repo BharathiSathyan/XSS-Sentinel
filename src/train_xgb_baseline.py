@@ -11,19 +11,55 @@ from imblearn.over_sampling import SMOTE
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# from src.caxf.caxf_extractor import CAXFExtractor
-# from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
-from caxf.caxf_extractor_charcnn import CAXFExtractor
+# Uncomment ONE extractor at a time:
+# from caxf.caxf_extractor_tfidf import CAXFExtractor
+from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+# from caxf.caxf_extractor_charcnn import CAXFExtractor
+import joblib
 from xgboost import XGBClassifier
+import sys
+import os
+from config import SEED
+
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "w", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
 
 
 def main():
+    extractor_module = CAXFExtractor.__module__
+    if "sentence_embedding" in extractor_module:
+        results_dir = "results/caxf_sentence_embedding_results"
+    elif "charcnn" in extractor_module:
+        results_dir = "results/caxf_char_cnn_results"
+    else:
+        results_dir = "results/caxf_tfidf_results"
+
+    if not os.path.exists("results") and os.path.exists("../results"):
+        results_dir = os.path.join("..", results_dir)
+
+    suffix = f"_seed_{SEED}"
+    os.makedirs(results_dir, exist_ok=True)
+    log_file = os.path.join(results_dir, f"train_xgb_unbalanced_smote{suffix}.txt")
+    sys.stdout = Logger(log_file)
 
     print("="*60)
     print("Loading dataset...")
     print("="*60)
 
-    df = pd.read_csv("data/processed/Final_XSS_4class_dataset.csv")
+    dataset_path = "data/processed/Final_XSS_4class_dataset.csv"
+    if not os.path.exists(dataset_path):
+        dataset_path = os.path.join("..", dataset_path)
+    df = pd.read_csv(dataset_path)
     df = df.drop_duplicates()
 
     X = df["Sentence"].astype(str)
@@ -47,7 +83,7 @@ def main():
         X,
         y_encoded,
         test_size=0.3,
-        random_state=42,
+        random_state=SEED,
         stratify=y_encoded
     )
 
@@ -82,7 +118,7 @@ def main():
     print("Applying SMOTE...")
     print("=" * 60)
 
-    smote = SMOTE(random_state=42)
+    smote = SMOTE(random_state=SEED)
 
     start = time.time()
 
@@ -110,7 +146,7 @@ def main():
         objective="multi:softprob",
         num_class=len(np.unique(y_encoded)),
         eval_metric="mlogloss",
-        random_state=42,
+        random_state=SEED,
         n_estimators=200,
         learning_rate=0.1,
         max_depth=6,
@@ -161,7 +197,18 @@ def main():
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
-    plt.show()
+    
+    plot_file = os.path.join(results_dir, f"train_xgb_unbalanced_smote{suffix}.png")
+    plt.savefig(plot_file)
+    plt.close()
+    print(f"Confusion Matrix plot saved to: {plot_file}")
+
+    # ---------------------------------------------------
+    # Save Trained Model
+    # ---------------------------------------------------
+    model_file = os.path.join(results_dir, f"xgb_model{suffix}.pkl")
+    joblib.dump(model, model_file)
+    print(f"Model saved to: {model_file}")
 
 
 

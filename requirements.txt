@@ -11,3 +11,4 @@ catboost
 matplotlib
 seaborn
 sentence-transformers
+torch

@@ -7,8 +7,10 @@ import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Ensure src directory is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+# Ensure both project root (for src.caxf.*) and src/ (for config) are in sys.path
+_here = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))  # project root
+sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))    # src/
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -26,14 +28,23 @@ from src.ensemble.lccde import LCCDE
 # ===============================
 # PATHS & CONFIG
 # ===============================
+from config import SEED
+
+suffix = f"_seed_{SEED}"
+
 DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
+if not os.path.exists(DATA_PATH):
+    DATA_PATH = os.path.join("..", DATA_PATH)
 CACHE_DIR = "results/cache/charcnn"
 OUTPUT_DIR = "results/caxf_char_cnn_results"
+if not os.path.exists("results") and os.path.exists("../results"):
+    CACHE_DIR = os.path.join("..", CACHE_DIR)
+    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TXT_OUT = os.path.join(OUTPUT_DIR, "lccde_results.txt")
-PNG_OUT = os.path.join(OUTPUT_DIR, "lccde_results.png")
+TXT_OUT = os.path.join(OUTPUT_DIR, f"lccde_results{suffix}.txt")
+PNG_OUT = os.path.join(OUTPUT_DIR, f"lccde_results{suffix}.png")
 
 def main():
     log_lines = []
@@ -60,6 +71,21 @@ def main():
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
 
+    class CatBoostIntAdapter:
+        """Wraps a CatBoost model trained on raw string labels,
+        translating its outputs to integer class indices so the
+        LCCDE ensemble (which expects ints) works correctly."""
+        def __init__(self, model, label_encoder):
+            self._model = model
+            self._le = label_encoder
+        def predict(self, X):
+            str_preds = self._model.predict(X)
+            flat = [p[0] if hasattr(p, '__len__') and not isinstance(p, str) else p
+                    for p in str_preds]
+            return self._le.transform(flat)
+        def predict_proba(self, X):
+            return self._model.predict_proba(X)
+
     log("="*60)
     log("Splitting dataset (70:30)...")
     log("="*60)
@@ -67,7 +93,7 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(
         X, y_encoded,
         test_size=0.30,
-        random_state=42,
+        random_state=SEED,
         stratify=y_encoded
     )
 
@@ -80,8 +106,8 @@ def main():
     # ===============================
     # FEATURE EXTRACTION
     # ===============================
-    cache_train_emb = f"{CACHE_DIR}/X_train_embed.npy"
-    cache_test_emb = f"{CACHE_DIR}/X_test_embed.npy"
+    cache_train_emb = f"{CACHE_DIR}/X_train_embed{suffix}.npy"
+    cache_test_emb = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
         log("⚡ Loading cached CharCNN embeddings...")
@@ -125,7 +151,7 @@ def main():
     log(str(pd.Series(y_train).value_counts()))
 
     start_smote = time.time()
-    smote = SMOTE(random_state=42)
+    smote = SMOTE(random_state=SEED)
     X_train_smote, y_train_smote = smote.fit_resample(X_train_embed, y_train)
     smote_time = round(time.time() - start_smote, 2)
 
@@ -139,22 +165,24 @@ def main():
     # ===============================
     # TRAIN BASE MODELS
     # ===============================
-    cache_lgbm = f"{CACHE_DIR}/lgbm.pkl"
-    cache_xgb = f"{CACHE_DIR}/xgb.pkl"
-    cache_cat = f"{CACHE_DIR}/cat.pkl"
-
+    cache_lgbm = r"C:\Users\bhara\OneDrive\Desktop\XSS-Sentinel\results\caxf_char_cnn_results\lgbm_model_seed_100.pkl"
+    cache_xgb = r"C:\Users\bhara\OneDrive\Desktop\XSS-Sentinel\results\caxf_char_cnn_results\xgb_model_seed_100.pkl"
+    cache_cat = r"C:\Users\bhara\OneDrive\Desktop\XSS-Sentinel\results\caxf_char_cnn_results\catboost_model_seed_100.pkl"
+    
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
         log("⚡ Loading trained base models...")
         lgbm = joblib.load(cache_lgbm)
         xgb = joblib.load(cache_xgb)
-        cat = joblib.load(cache_cat)
+        _cat_raw = joblib.load(cache_cat)
+        # Baseline CatBoost was trained on string labels; wrap it so LCCDE gets ints
+        cat = CatBoostIntAdapter(_cat_raw, le)
         train_time_lgbm, train_time_xgb, train_time_cat = 0.0, 0.0, 0.0
     else:
         # LightGBM
         log("Training LightGBM...")
         lgbm = LGBMClassifier(
             objective="multiclass", num_class=4, n_estimators=100,
-            learning_rate=0.1, random_state=42, n_jobs=-1
+            learning_rate=0.1, random_state=SEED, n_jobs=-1
         )
         t0 = time.time()
         lgbm.fit(X_train_smote, y_train_smote)
@@ -166,7 +194,7 @@ def main():
         xgb = XGBClassifier(
             objective="multi:softprob", num_class=4, n_estimators=100,
             learning_rate=0.1, max_depth=6, subsample=0.8, colsample_bytree=0.8,
-            tree_method="hist", random_state=42, n_jobs=-1
+            tree_method="hist", random_state=SEED, n_jobs=-1
         )
         t0 = time.time()
         xgb.fit(X_train_smote, y_train_smote)
@@ -180,7 +208,7 @@ def main():
         class_weights = {cls: total / (len(class_counts) * count) for cls, count in class_counts.items()}
         cat = CatBoostClassifier(
             loss_function="MultiClass", iterations=100, learning_rate=0.1,
-            depth=4, class_weights=class_weights, random_seed=42, thread_count=4,
+            depth=4, class_weights=class_weights, random_seed=SEED, thread_count=4,
             task_type="CPU", verbose=False
         )
         t0 = time.time()
