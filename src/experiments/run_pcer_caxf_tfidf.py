@@ -99,7 +99,7 @@ def main():
     cache_test_emb  = resolve_cache_path(CACHE_DIR, "X_test_embed",  suffix, "npy")
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached TF-IDF embeddings...")
+        log("[CACHE] Loading cached TF-IDF embeddings...")
         X_train_embed = load_embedding(cache_train_emb)
         X_test_embed  = load_embedding(cache_test_emb)
     else:
@@ -130,7 +130,7 @@ def main():
     cache_cat  = resolve_cache_path(CACHE_DIR, "cat",  suffix, "pkl")
 
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
-        log("⚡ Loading trained base models...")
+        log("[CACHE] Loading trained base models...")
         lgbm = joblib.load(cache_lgbm)
         xgb  = joblib.load(cache_xgb)
         cat  = joblib.load(cache_cat)
@@ -190,7 +190,7 @@ def main():
         for k in range(len(model_names)):
             row += f"{pcer.class_precision[c_idx, k]:.4f}      "
         expert_name = model_names[pcer.expert_table[c_idx]]
-        row += f"  → {expert_name}"
+        row += f"  -> {expert_name}"
         log(row)
     log()
 

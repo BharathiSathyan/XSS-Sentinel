@@ -67,7 +67,7 @@ def main():
     log("=" * 60)
     log("CCDS ENSEMBLE PIPELINE — CAXF TF-IDF")
     log("Confidence-Calibrated Dynamic Selection (Novel Algorithm)")
-    log("Routing: JSD disagreement spectrum → entropy-weighted strategies")
+    log("Routing: JSD disagreement spectrum -> entropy-weighted strategies")
     log("=" * 60)
 
     # ---------------------------------------------------------------
@@ -100,7 +100,7 @@ def main():
     cache_test_emb  = resolve_cache_path(CACHE_DIR, "X_test_embed",  suffix, "npy")
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached TF-IDF embeddings...")
+        log("[CACHE] Loading cached TF-IDF embeddings...")
         X_train_embed = load_embedding(cache_train_emb)
         X_test_embed  = load_embedding(cache_test_emb)
     else:
@@ -131,7 +131,7 @@ def main():
     cache_cat  = resolve_cache_path(CACHE_DIR, "cat",  suffix, "pkl")
 
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
-        log("⚡ Loading trained base models...")
+        log("[CACHE] Loading trained base models...")
         lgbm = joblib.load(cache_lgbm)
         xgb  = joblib.load(cache_xgb)
         cat  = joblib.load(cache_cat)
