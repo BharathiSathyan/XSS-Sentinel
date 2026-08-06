@@ -68,6 +68,8 @@ class CatBoostIntAdapter:
         str_preds = self._model.predict(X)
         flat = [p[0] if hasattr(p, "__len__") and not isinstance(p, str) else p
                 for p in str_preds]
+        if len(flat) > 0 and isinstance(flat[0], (int, np.integer)):
+            return np.array(flat, dtype=int)
         return self._le.transform(flat)
 
     def predict_proba(self, X):
@@ -117,7 +119,7 @@ def main():
     cache_test_emb  = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached CharCNN embeddings...")
+        log("[CACHE] Loading cached CharCNN embeddings...")
         X_train_embed = np.load(cache_train_emb).astype(np.float32)
         X_test_embed  = np.load(cache_test_emb).astype(np.float32)
     else:
@@ -156,14 +158,22 @@ def main():
     # Load base models
     # ---------------------------------------------------------------
     cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
-    cache_xgb  = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
-    cat_path   = CAT_RESULT_PATH if os.path.exists(CAT_RESULT_PATH) else CAT_CACHE_PATH
+    if not os.path.exists(cache_lgbm):
+        cache_lgbm = os.path.join(CACHE_DIR, "lgbm.pkl")
 
-    if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cat_path):
-        log("⚡ Loading trained base models...")
+    cache_xgb = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
+    if not os.path.exists(cache_xgb):
+        cache_xgb = os.path.join(CACHE_DIR, "xgb.pkl")
+
+    cache_cat = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
+    if not os.path.exists(cache_cat):
+        cache_cat = os.path.join(CACHE_DIR, "cat.pkl")
+
+    if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
+        log("[CACHE] Loading trained base models...")
         lgbm     = joblib.load(cache_lgbm)
         xgb      = joblib.load(cache_xgb)
-        _cat_raw = joblib.load(cat_path)
+        _cat_raw = joblib.load(cache_cat)
         cat      = CatBoostIntAdapter(_cat_raw, le)
     else:
         log("Training base models...")
@@ -194,7 +204,7 @@ def main():
             thread_count=4, task_type="CPU", verbose=False
         )
         _cat_raw.fit(X_train_orig, y_train_orig)
-        joblib.dump(_cat_raw, CAT_RESULT_PATH)
+        joblib.dump(_cat_raw, cache_cat)
         cat = CatBoostIntAdapter(_cat_raw, le)
 
     # ---------------------------------------------------------------
@@ -214,7 +224,7 @@ def main():
     class_names = le.classes_
     model_names = ["LightGBM", "XGBoost", "CatBoost"]
 
-    log("Per-class precision matrix (Laplace-smoothed):")
+    log("Cascading precision routing: Precision thresholds -> Cascaded decision")
     header = f"  {'Class':<20}" + "".join(f"{n:<12}" for n in model_names) + "  Expert"
     log(header)
     for c_idx, c_name in enumerate(class_names):
@@ -222,7 +232,7 @@ def main():
         for k in range(len(model_names)):
             row += f"{pcer.class_precision[c_idx, k]:.4f}      "
         expert_name = model_names[pcer.expert_table[c_idx]]
-        row += f"  → {expert_name}"
+        row += f"  -> {expert_name}"
         log(row)
     log()
 

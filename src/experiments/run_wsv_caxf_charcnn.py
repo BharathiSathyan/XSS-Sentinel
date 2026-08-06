@@ -76,6 +76,8 @@ class CatBoostIntAdapter:
         str_preds = self._model.predict(X)
         flat = [p[0] if hasattr(p, "__len__") and not isinstance(p, str) else p
                 for p in str_preds]
+        if len(flat) > 0 and isinstance(flat[0], (int, np.integer)):
+            return np.array(flat, dtype=int)
         return self._le.transform(flat)
 
     def predict_proba(self, X):
@@ -124,7 +126,7 @@ def main():
     cache_test_emb  = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached CharCNN embeddings...")
+        log("[CACHE] Loading cached CharCNN embeddings...")
         X_train_embed = np.load(cache_train_emb).astype(np.float32)
         X_test_embed  = np.load(cache_test_emb).astype(np.float32)
     else:
@@ -163,15 +165,22 @@ def main():
     # Load base models — same paths as run_lccde_caxf_charcnn.py
     # ---------------------------------------------------------------
     cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
-    cache_xgb  = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
+    if not os.path.exists(cache_lgbm):
+        cache_lgbm = os.path.join(CACHE_DIR, "lgbm.pkl")
 
-    cat_path = CAT_RESULT_PATH if os.path.exists(CAT_RESULT_PATH) else CAT_CACHE_PATH
+    cache_xgb = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
+    if not os.path.exists(cache_xgb):
+        cache_xgb = os.path.join(CACHE_DIR, "xgb.pkl")
 
-    if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cat_path):
-        log("⚡ Loading trained base models...")
+    cache_cat = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
+    if not os.path.exists(cache_cat):
+        cache_cat = os.path.join(CACHE_DIR, "cat.pkl")
+
+    if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
+        log("[CACHE] Loading trained base models...")
         lgbm     = joblib.load(cache_lgbm)
         xgb      = joblib.load(cache_xgb)
-        _cat_raw = joblib.load(cat_path)
+        _cat_raw = joblib.load(cache_cat)
         cat      = CatBoostIntAdapter(_cat_raw, le)
     else:
         log("Training base models (models not found in cache)...")
@@ -202,7 +211,7 @@ def main():
             thread_count=4, task_type="CPU", verbose=False
         )
         _cat_raw.fit(X_train_orig, y_train_orig)
-        joblib.dump(_cat_raw, CAT_RESULT_PATH)
+        joblib.dump(_cat_raw, cache_cat)
         cat = CatBoostIntAdapter(_cat_raw, le)
 
     # ---------------------------------------------------------------

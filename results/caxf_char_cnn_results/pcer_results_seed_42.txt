@@ -1,0 +1,60 @@
+============================================================
+PCER ENSEMBLE PIPELINE — CAXF CHAR-CNN
+Per-Class Expert Routing (Novel Algorithm)
+Expert assignment via per-class precision on training data
+============================================================
+Loading dataset...
+Total samples: 10917
+Class distribution:
+Final_Label
+Reflected XSS    6795
+Normal           3594
+Stored XSS        498
+DOM-based XSS      30
+Name: count, dtype: int64
+
+Splitting dataset (70:30, seed=42)...
+Train size: 7641
+Test  size: 3276
+
+[CACHE] Loading cached CharCNN embeddings...
+Embedding shape (train): (7641, 410)
+Embedding shape (test) : (3276, 410)
+
+Applying SMOTE...
+After SMOTE — class counts: {1: np.int64(4756), 2: np.int64(4756), 3: np.int64(4756), 0: np.int64(4756)}
+
+[CACHE] Loading trained base models...
+============================================================
+Computing PCER expert table from training set...
+============================================================
+Cascading precision routing: Precision thresholds -> Cascaded decision
+  Class               LightGBM    XGBoost     CatBoost      Expert
+  DOM-based XSS       0.9167      0.9167      0.3333        -> LightGBM
+  Normal              0.9992      0.9992      0.9897        -> LightGBM
+  Reflected XSS       0.9996      0.9996      0.9994        -> LightGBM
+  Stored XSS          0.9943      0.9943      0.1808        -> LightGBM
+
+============================================================
+Evaluating PCER Ensemble...
+============================================================
+PCER Inference time: 0.2122 seconds
+
+Accuracy : 0.9966
+
+Classification Report:
+               precision    recall  f1-score   support
+
+DOM-based XSS       0.88      0.78      0.82         9
+       Normal       0.99      1.00      1.00      1079
+Reflected XSS       1.00      1.00      1.00      2039
+   Stored XSS       0.99      0.97      0.98       149
+
+     accuracy                           1.00      3276
+    macro avg       0.96      0.94      0.95      3276
+ weighted avg       1.00      1.00      1.00      3276
+
+Paper Format Metrics
+Precision   : 0.9635
+Recall      : 0.9355
+Average F1  : 0.9487

@@ -72,17 +72,18 @@ def main():
     y_encoded = le.fit_transform(y)
 
     class CatBoostIntAdapter:
-        """Wraps a CatBoost model trained on raw string labels,
-        translating its outputs to integer class indices so the
-        LCCDE ensemble (which expects ints) works correctly."""
         def __init__(self, model, label_encoder):
             self._model = model
             self._le = label_encoder
+
         def predict(self, X):
             str_preds = self._model.predict(X)
-            flat = [p[0] if hasattr(p, '__len__') and not isinstance(p, str) else p
+            flat = [p[0] if hasattr(p, "__len__") and not isinstance(p, str) else p
                     for p in str_preds]
+            if len(flat) > 0 and isinstance(flat[0], (int, np.integer)):
+                return np.array(flat, dtype=int)
             return self._le.transform(flat)
+
         def predict_proba(self, X):
             return self._model.predict_proba(X)
 
@@ -110,7 +111,7 @@ def main():
     cache_test_emb = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached CharCNN embeddings...")
+        log("[CACHE] Loading cached CharCNN embeddings...")
         X_train_embed = np.load(cache_train_emb)
         X_test_embed = np.load(cache_test_emb)
         caxf_time = 0.0
@@ -165,16 +166,23 @@ def main():
     # ===============================
     # TRAIN BASE MODELS
     # ===============================
-    cache_lgbm = r"C:\Users\bhara\OneDrive\Desktop\XSS-Sentinel\results\caxf_char_cnn_results\lgbm_model_seed_100.pkl"
-    cache_xgb = r"C:\Users\bhara\OneDrive\Desktop\XSS-Sentinel\results\caxf_char_cnn_results\xgb_model_seed_100.pkl"
-    cache_cat = r"C:\Users\bhara\OneDrive\Desktop\XSS-Sentinel\results\caxf_char_cnn_results\catboost_model_seed_100.pkl"
-    
+    cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
+    if not os.path.exists(cache_lgbm):
+        cache_lgbm = os.path.join(CACHE_DIR, "lgbm.pkl")
+
+    cache_xgb = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
+    if not os.path.exists(cache_xgb):
+        cache_xgb = os.path.join(CACHE_DIR, "xgb.pkl")
+
+    cache_cat = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
+    if not os.path.exists(cache_cat):
+        cache_cat = os.path.join(CACHE_DIR, "cat.pkl")
+
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
-        log("⚡ Loading trained base models...")
+        log("[CACHE] Loading trained base models...")
         lgbm = joblib.load(cache_lgbm)
         xgb = joblib.load(cache_xgb)
         _cat_raw = joblib.load(cache_cat)
-        # Baseline CatBoost was trained on string labels; wrap it so LCCDE gets ints
         cat = CatBoostIntAdapter(_cat_raw, le)
         train_time_lgbm, train_time_xgb, train_time_cat = 0.0, 0.0, 0.0
     else:

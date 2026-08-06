@@ -1,0 +1,57 @@
+============================================================
+STACKING ENSEMBLE PIPELINE — CAXF CHAR-CNN
+Stacked Generalisation with OOF meta-feature generation
+Meta-learner: Logistic Regression (L2, multinomial)
+============================================================
+Loading dataset...
+Total samples: 10917
+Class distribution:
+Final_Label
+Reflected XSS    6795
+Normal           3594
+Stored XSS        498
+DOM-based XSS      30
+Name: count, dtype: int64
+
+Splitting dataset (70:30, seed=42)...
+Train size: 7641
+Test  size: 3276
+
+[CACHE] Loading cached CharCNN embeddings...
+Embedding shape (train): (7641, 410)
+Embedding shape (test) : (3276, 410)
+
+Applying SMOTE...
+After SMOTE — class counts: {1: np.int64(4756), 2: np.int64(4756), 3: np.int64(4756), 0: np.int64(4756)}
+
+[CACHE] Loading trained base models...
+============================================================
+Stacking Ensemble — OOF Meta-Feature Generation
+============================================================
+Generating OOF meta-features (5-fold StratifiedKFold)...
+OOF + meta-learner training time: 85.06s
+Cached to: ..\results/cache/charcnn\stacking_ensemble_seed_42.pkl
+
+============================================================
+Evaluating Stacking Ensemble...
+============================================================
+Stacking Inference time: 0.0825 seconds
+
+Accuracy : 0.9942
+
+Classification Report:
+               precision    recall  f1-score   support
+
+DOM-based XSS       1.00      0.78      0.88         9
+       Normal       1.00      0.99      1.00      1079
+Reflected XSS       1.00      1.00      1.00      2039
+   Stored XSS       0.90      0.99      0.94       149
+
+     accuracy                           0.99      3276
+    macro avg       0.97      0.94      0.95      3276
+ weighted avg       0.99      0.99      0.99      3276
+
+Paper Format Metrics
+Precision   : 0.9738
+Recall      : 0.9399
+Average F1  : 0.9528
