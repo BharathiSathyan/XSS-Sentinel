@@ -1,0 +1,173 @@
+============================================================
+ENSEMBLE COMPARISON REPORT — CAXF CHAR-CNN (Seed 100)
+============================================================
+Feature Extractor : CharCNN (410-dim embeddings)
+Base Models       : LightGBM + XGBoost + CatBoost
+Train/Test Split  : 70:30, seed=100, stratified
+Test Samples      : 3276
+Dataset           : Final_XSS_4class_dataset.csv (10917 samples)
+Classes           : DOM-based XSS (9), Normal (1079),
+                    Reflected XSS (2039), Stored XSS (149)
+============================================================
+
+
+------------------------------------------------------------
+SECTION 1: OVERALL RANKING & METRICS
+------------------------------------------------------------
+Rank  Algorithm           Accuracy   Precision  Recall     F1         Inf.Time
+                                     (Macro)    (Macro)    (Macro)
+------------------------------------------------------------
+1 🏆   CCDS (Novel)        99.54%     96.96%     95.78%     96.36%     0.67 s
+2 🥈   BMA                 99.60%     94.46%     96.12%     95.23%     0.08 s
+3 🥉   WSV (Tied)          99.57%     94.43%     95.95%     95.13%     —
+3 🥉   PCER (Novel, Tied)  99.57%     94.43%     95.95%     95.13%     0.14 s
+5     Stacking            98.53%     91.36%     95.83%     93.27%     0.08 s
+6     LCCDE (baseline)    96.25%     76.06%     92.36%     75.28%     0.19 s
+------------------------------------------------------------
+WSV  = Weighted Soft Voting
+BMA  = Bayesian Model Averaging
+PCER = Per-Class Expert Routing (custom novel)
+CCDS = Confidence-Calibrated Dynamic Selection (custom novel)
+Stacking = Stacked Generalisation (OOF, LogReg meta-learner)
+
+
+------------------------------------------------------------
+SECTION 2: PER-CLASS F1 SCORE
+------------------------------------------------------------
+Rank  Algorithm           DOM-based   Normal      Reflected   Stored
+                          XSS (9)     (1079)      XSS (2039)  XSS (149)
+------------------------------------------------------------
+1 🏆   CCDS (Novel)        0.89 ✅     1.00 ✅     1.00 ✅     0.97
+2 🥈   BMA                 0.84        1.00 ✅     1.00 ✅     0.97
+3     WSV                 0.84        0.99        1.00 ✅     0.97
+3     PCER (Novel)        0.84        0.99        1.00 ✅     0.97
+5     Stacking            0.89 ✅     0.98        1.00 ✅     0.86
+6     LCCDE (baseline)    0.13 ❌     0.99        0.98        0.92
+------------------------------------------------------------
+
+
+------------------------------------------------------------
+SECTION 3: PER-CLASS PRECISION / RECALL
+------------------------------------------------------------
+
+--- DOM-based XSS (support=9) ---
+Algorithm           Precision   Recall      F1
+CCDS (Novel) 🏆     0.89        0.89        0.89
+Stacking            0.89        0.89        0.89
+BMA                 0.80        0.89        0.84
+WSV                 0.80        0.89        0.84
+PCER (Novel)        0.80        0.89        0.84
+LCCDE (baseline)    0.07        0.89        0.13
+
+--- Normal (support=1079) ---
+Algorithm           Precision   Recall      F1
+BMA 🥈              0.99        1.00        1.00
+CCDS (Novel) 🏆     0.99        1.00        1.00
+WSV                 0.99        1.00        0.99
+PCER (Novel)        0.99        1.00        0.99
+LCCDE (baseline)    0.99        0.99        0.99
+Stacking            1.00        0.97        0.98
+
+--- Reflected XSS (support=2039) ---
+Algorithm           Precision   Recall      F1
+CCDS (Novel) 🏆     1.00        1.00        1.00
+BMA 🥈              1.00        1.00        1.00
+WSV                 1.00        1.00        1.00
+PCER (Novel)        1.00        1.00        1.00
+Stacking            1.00        0.99        1.00
+LCCDE (baseline)    1.00        0.95        0.98
+
+--- Stored XSS (support=149) ---
+Algorithm           Precision   Recall      F1
+CCDS (Novel) 🏆     1.00        0.95        0.97
+BMA 🥈              0.99        0.96        0.97
+WSV                 0.99        0.95        0.97
+PCER (Novel)        0.99        0.95        0.97
+LCCDE (baseline)    0.98        0.86        0.92
+Stacking            0.77        0.98        0.86
+
+
+------------------------------------------------------------
+SECTION 4: IMPROVEMENT OVER LCCDE BASELINE (BY RANK)
+------------------------------------------------------------
+Rank  Algorithm           ΔAccuracy   ΔMacro F1   ΔDOM F1
+------------------------------------------------------------
+1     CCDS (Novel) 🏆     +3.29 pp    +20.08 pp   +0.76
+2     BMA 🥈              +3.35 pp    +19.95 pp   +0.71
+3     WSV                 +3.32 pp    +19.85 pp   +0.71
+3     PCER (Novel)        +3.32 pp    +19.85 pp   +0.71
+5     Stacking            +2.28 pp    +17.99 pp   +0.76
+------------------------------------------------------------
+pp = percentage points
+
+
+------------------------------------------------------------
+SECTION 5: RANKINGS & WINNER ANALYSIS
+------------------------------------------------------------
+
+🏆 RANK 1 — WINNER: CCDS (Confidence-Calibrated Dynamic Selection)
+  Macro F1        : 96.36%  (+20.08 pp over LCCDE)
+  Macro Precision : 96.96%  (highest among all methods)
+  DOM-based F1    : 0.89    (tied best with Stacking)
+  Inference Time  : 0.67 s  (zero additional training required)
+  Why Rank 1      : CCDS dominates across the most critical metrics in
+                    imbalanced multi-class classification: Macro F1 and
+                    Macro Precision. It uses Shannon entropy and
+                    Jensen-Shannon Divergence to construct a continuous
+                    disagreement spectrum, dynamically routing samples rather
+                    than relying on naive hard votes.
+
+🥈 RANK 2 — RUNNER-UP: BMA (Bayesian Model Averaging)
+  Macro F1        : 95.23%  (+19.95 pp over LCCDE)
+  Inference Time  : 0.08 s  (fastest alongside Stacking)
+  Why Rank 2      : Achieves the highest raw accuracy (99.60%) and second-best
+                    Macro F1 while running in just 80 milliseconds with zero
+                    meta-training overhead. Best choice when low latency is required.
+
+🥉 RANK 3 (TIED) — WSV (Weighted Soft Voting) & PCER (Per-Class Expert Routing)
+  Macro F1        : 95.13%  (+19.85 pp over LCCDE)
+  Why Rank 3      : Both methods significantly outperform LCCDE across all classes
+                    and achieve 0.84 F1 on DOM-based XSS. In CharCNN's representation,
+                    PCER's training precision table routes all four classes to
+                    LightGBM as the expert, producing identical performance to
+                    macro-F1 weighted soft voting.
+
+RANK 5 — Stacking (Stacked Generalisation)
+  Macro F1        : 93.27%  (+17.99 pp over LCCDE)
+  Why Rank 5      : While Stacking achieves top-tier performance on DOM-based XSS
+                    (F1=0.89), its Logistic Regression meta-learner suffers slightly
+                    on Stored XSS precision (0.77). Because DOM-based XSS samples are
+                    extremely rare in the OOF training folds (~4-5 instances per fold),
+                    the linear meta-learner overcompensates on boundary thresholds.
+
+RANK 6 — LCCDE (Baseline)
+  Macro F1        : 75.28%  (Lowest overall performance)
+  Why Rank 6      : LCCDE fails critically on DOM-based XSS (Precision = 7%, F1 = 0.13).
+                    Because CharCNN features have relatively lower dimensionality
+                    (410 vs TF-IDF's 5282), base models exhibit higher disagreement.
+                    LCCDE's rigid hard-voting rules blindly delegate contested predictions
+                    to a single confident model that is frequently wrong on rare classes.
+
+------------------------------------------------------------
+PCER Expert Table (from training set precision):
+------------------------------------------------------------
+Class               LightGBM    XGBoost     CatBoost    Expert
+DOM-based XSS       0.9167      0.9167      0.3333      LightGBM *
+Normal              0.9992      0.9992      0.9924      LightGBM *
+Reflected XSS       0.9996      0.9996      0.9996      LightGBM *
+Stored XSS          0.9943      0.9943      0.3697      LightGBM *
+* Tie-broken by array index (LightGBM vs XGBoost tied on 3 of 4 classes)
+
+BMA Weight Table (from training set per-class precision):
+------------------------------------------------------------
+Class               LightGBM    XGBoost     CatBoost
+DOM-based XSS       0.4231      0.4231      0.1538
+Normal              0.3341      0.3341      0.3318
+Reflected XSS       0.3333      0.3333      0.3333
+Stored XSS          0.4216      0.4216      0.1568
+(CatBoost receives lower weight on imbalanced classes because
+ it was trained without SMOTE, using class_weights instead)
+
+============================================================
+END OF REPORT
+============================================================

@@ -1,0 +1,68 @@
+============================================================
+LCCDE ENSEMBLE PIPELINE — CAXF CHAR-CNN
+============================================================
+Loading dataset...
+============================================================
+Total samples: 10917
+Class distribution:
+Final_Label
+Reflected XSS    6795
+Normal           3594
+Stored XSS        498
+DOM-based XSS      30
+Name: count, dtype: int64
+
+============================================================
+Splitting dataset (70:30)...
+============================================================
+Train size: 7641
+Test size : 3276
+Overlap Size: 0
+
+⚡ Loading cached CharCNN embeddings...
+Embedding shape (train): (7641, 410)
+Embedding shape (test) : (3276, 410)
+CAXF time: 0.0 seconds
+
+============================================================
+Applying SMOTE...
+============================================================
+Before SMOTE:
+2    4756
+1    2515
+3     349
+0      21
+Name: count, dtype: int64
+
+After SMOTE:
+2    4756
+3    4756
+1    4756
+0    4756
+Name: count, dtype: int64
+SMOTE time: 2.66 seconds
+
+⚡ Loading trained base models...
+============================================================
+Evaluating LCCDE Ensemble...
+============================================================
+LCCDE Inference time: 0.1915 seconds
+
+Accuracy: 0.9625
+
+Classification Report:
+               precision    recall  f1-score   support
+
+DOM-based XSS       0.07      0.89      0.13         9
+       Normal       0.99      0.99      0.99      1079
+Reflected XSS       1.00      0.95      0.98      2039
+   Stored XSS       0.98      0.86      0.92       149
+
+     accuracy                           0.96      3276
+    macro avg       0.76      0.92      0.75      3276
+ weighted avg       0.99      0.96      0.98      3276
+
+Paper Format Metrics
+Precision: 0.7606
+Recall: 0.9236
+Average F1: 0.7528

@@ -10,18 +10,54 @@ from catboost import CatBoostClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-## from src.caxf.caxf_extractor import CAXFExtractor
-from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
-from caxf.caxf_extractor_charcnn import CAXFExtractor
+# Uncomment ONE extractor at a time:
+# from caxf.caxf_extractor_tfidf import CAXFExtractor
+from caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+# from caxf.caxf_extractor_charcnn import CAXFExtractor
+import joblib
+import sys
+import os
+from config import SEED
+
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "w", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
 
 
 def main():
+    extractor_module = CAXFExtractor.__module__
+    if "sentence_embedding" in extractor_module:
+        results_dir = "results/caxf_sentence_embedding_results"
+    elif "charcnn" in extractor_module:
+        results_dir = "results/caxf_char_cnn_results"
+    else:
+        results_dir = "results/caxf_tfidf_results"
+
+    if not os.path.exists("results") and os.path.exists("../results"):
+        results_dir = os.path.join("..", results_dir)
+
+    suffix = f"_seed_{SEED}"
+    os.makedirs(results_dir, exist_ok=True)
+    log_file = os.path.join(results_dir, f"train_catboost_unbalanced_smote{suffix}.txt")
+    sys.stdout = Logger(log_file)
 
     print("=" * 60)
     print("Loading dataset...")
     print("=" * 60)
 
-    df = pd.read_csv("data/processed/Final_XSS_4class_dataset.csv")
+    dataset_path = "data/processed/Final_XSS_4class_dataset.csv"
+    if not os.path.exists(dataset_path):
+        dataset_path = os.path.join("..", dataset_path)
+    df = pd.read_csv(dataset_path)
     df = df.drop_duplicates()  #Proper duplicate removal
 
     X = df["Sentence"].astype(str)
@@ -43,7 +79,7 @@ def main():
         X,
         y,
         test_size=0.3,
-        random_state=42,
+        random_state=SEED,
         stratify=y
     )
 
@@ -107,7 +143,7 @@ def main():
 
     model = CatBoostClassifier(
         loss_function="MultiClass",
-        random_seed=42,
+        random_seed=SEED,
         iterations=300,
         learning_rate=0.05,
         depth=5,
@@ -172,7 +208,18 @@ def main():
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
-    plt.show()
+    
+    plot_file = os.path.join(results_dir, f"train_catboost_unbalanced_smote{suffix}.png")
+    plt.savefig(plot_file)
+    plt.close()
+    print(f"Confusion Matrix plot saved to: {plot_file}")
+
+    # ---------------------------------------------------
+    # Save Trained Model
+    # ---------------------------------------------------
+    model_file = os.path.join(results_dir, f"catboost_model{suffix}.pkl")
+    joblib.dump(model, model_file)
+    print(f"Model saved to: {model_file}")
 
 
 if __name__ == "__main__":

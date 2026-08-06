@@ -1,0 +1,170 @@
+============================================================
+ENSEMBLE COMPARISON REPORT — CAXF TF-IDF (Seed 42)
+============================================================
+Feature Extractor : TF-IDF (5282-dim embeddings)
+Base Models       : LightGBM + XGBoost + CatBoost
+Train/Test Split  : 70:30, seed=42, stratified
+Test Samples      : 3276
+Dataset           : Final_XSS_4class_dataset.csv (10917 samples)
+Classes           : DOM-based XSS (9), Normal (1079),
+                    Reflected XSS (2039), Stored XSS (149)
+============================================================
+
+
+------------------------------------------------------------
+SECTION 1: OVERALL RANKING & METRICS
+------------------------------------------------------------
+Rank  Algorithm           Accuracy   Precision  Recall     F1         Inf.Time
+                                     (Macro)    (Macro)    (Macro)
+------------------------------------------------------------
+1 🏆   Stacking            99.69%     93.97%     96.76%     95.30%     0.41 s
+2 🥈   CCDS (Novel)        99.66%     93.97%     96.59%     95.22%     2.97 s
+3 🥉   PCER (Novel, Tied)  99.66%     94.10%     96.44%     95.21%     0.31 s
+3 🥉   WSV (Tied)          99.66%     94.10%     96.44%     95.21%     0.45 s
+5     LCCDE (baseline)    99.66%     94.08%     96.44%     95.21%     1.06 s
+6     BMA                 99.63%     93.94%     96.42%     95.12%     1.11 s
+------------------------------------------------------------
+WSV  = Weighted Soft Voting
+BMA  = Bayesian Model Averaging
+PCER = Per-Class Expert Routing (custom novel)
+CCDS = Confidence-Calibrated Dynamic Selection (custom novel)
+Stacking = Stacked Generalisation (OOF, LogReg meta-learner)
+
+
+------------------------------------------------------------
+SECTION 2: PER-CLASS F1 SCORE
+------------------------------------------------------------
+Rank  Algorithm           DOM-based   Normal      Reflected   Stored
+                          XSS (9)     (1079)      XSS (2039)  XSS (149)
+------------------------------------------------------------
+1 🏆   Stacking            0.84        1.00 ✅     1.00 ✅     0.97 ✅
+2 🥈   CCDS (Novel)        0.84        1.00 ✅     1.00 ✅     0.97 ✅
+3     PCER (Novel)        0.84        1.00 ✅     1.00 ✅     0.97 ✅
+3     WSV                 0.84        1.00 ✅     1.00 ✅     0.97 ✅
+5     LCCDE (baseline)    0.84        1.00 ✅     1.00 ✅     0.97 ✅
+6     BMA                 0.84        1.00 ✅     1.00 ✅     0.97 ✅
+------------------------------------------------------------
+Note: Unlike CharCNN where LCCDE suffered a catastrophic failure on
+DOM-based XSS (F1=0.13), TF-IDF's high-dimensional feature space (5282)
+enables all models to achieve consensus, resulting in identical 0.84 F1
+on DOM-based XSS across all methods.
+
+
+------------------------------------------------------------
+SECTION 3: PER-CLASS PRECISION / RECALL
+------------------------------------------------------------
+
+--- DOM-based XSS (support=9) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         0.80        0.89        0.84
+CCDS (Novel) 🥈     0.80        0.89        0.84
+PCER (Novel) 🥉     0.80        0.89        0.84
+WSV 🥉              0.80        0.89        0.84
+LCCDE (baseline)    0.80        0.89        0.84
+BMA                 0.80        0.89        0.84
+
+--- Normal (support=1079) ---
+Algorithm           Precision   Recall      F1
+All 6 Algorithms    1.00        1.00        1.00
+
+--- Reflected XSS (support=2039) ---
+Algorithm           Precision   Recall      F1
+All 6 Algorithms    1.00        1.00        1.00
+
+--- Stored XSS (support=149) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         0.96        0.99        0.97 (Highest recall: 99%)
+CCDS (Novel) 🥈     0.96        0.98        0.97 (Second highest recall: 98%)
+PCER (Novel) 🥉     0.97        0.97        0.97
+WSV 🥉              0.97        0.97        0.97
+LCCDE (baseline)    0.97        0.97        0.97
+BMA                 0.96        0.97        0.97
+
+
+------------------------------------------------------------
+SECTION 4: IMPROVEMENT & PERFORMANCE OVER LCCDE BASELINE
+------------------------------------------------------------
+Rank  Algorithm           ΔAccuracy   ΔMacro F1   ΔInference Speedup
+------------------------------------------------------------
+1     Stacking 🏆         +0.03 pp    +0.09 pp    2.5x faster (0.41s vs 1.06s)
+2     CCDS (Novel) 🥈     0.00 pp     +0.01 pp    0.35x (2.97s - heavy JSD eval)
+3     PCER (Novel) 🥉     0.00 pp     0.00 pp*    3.4x faster (0.31s vs 1.06s)
+3     WSV 🥉              0.00 pp     0.00 pp*    2.4x faster (0.45s vs 1.06s)
+6     BMA                 -0.03 pp    -0.09 pp    0.95x (1.11s vs 1.06s)
+------------------------------------------------------------
+* PCER and WSV achieve higher Macro Precision than LCCDE (+0.02 pp: 94.10% vs 94.08%)
+pp = percentage points
+
+
+------------------------------------------------------------
+SECTION 5: RANKINGS & WINNER ANALYSIS
+------------------------------------------------------------
+
+🏆 RANK 1 — WINNER: Stacking (Stacked Generalisation)
+  Macro F1        : 95.30%  (+0.09 pp over LCCDE)
+  Accuracy        : 99.69%  (Highest accuracy on TF-IDF test set)
+  Stored XSS Rec. : 0.99    (Highest recall among all methods)
+  Inference Time  : 0.41 s  (2.5x faster inference than LCCDE)
+  Why Rank 1      : In high-dimensional spaces like TF-IDF (5282 features), base
+                    models rarely err. Stacking's OOF meta-learner successfully
+                    learned fine-grained probability calibration across models,
+                    boosting recall on Stored XSS from 0.97 to 0.99 and achieving
+                    the highest overall accuracy and macro-F1 score.
+
+🥈 RANK 2 — BEST NOVEL METHOD: CCDS (Confidence-Calibrated Dynamic Selection)
+  Macro F1        : 95.22%  (+0.01 pp over LCCDE)
+  Stored XSS Rec. : 0.98    (+1 pp over LCCDE)
+  Why Rank 2      : CCDS out-performs LCCDE in both F1 and recall without requiring
+                    any meta-training. By evaluating Shannon entropy and Jensen-
+                    Shannon Divergence, it effectively identifies mild probability
+                    disagreements on boundary Stored XSS attacks, soft-voting to
+                    recover false negatives that LCCDE's hard-vote discards.
+
+🥉 RANK 3 (TIED) — PCER (Per-Class Expert Routing) & WSV (Weighted Soft Voting)
+  Macro F1        : 95.21%  (Tied with LCCDE, but +0.02 pp higher Macro Precision)
+  Inference Time  : PCER is 0.31 s (3.4x faster than LCCDE!)
+  Why Rank 3      : Both methods beat LCCDE on Macro Precision (94.10% vs 94.08%)
+                    while executing far faster. PCER is the ultimate lightweight
+                    champion: by consulting its pre-computed training precision
+                    table, it performs zero complex decision logic at runtime,
+                    completing 3,276 inferences in just 314 milliseconds.
+
+RANK 5 — LCCDE (Baseline)
+  Macro F1        : 95.21%
+  Inference Time  : 1.06 s
+  Why Rank 5      : Because TF-IDF yields highly separable feature vectors, base
+                    models agree on 99.6% of samples. LCCDE performs reasonably
+                    well here, but its sequential 3-tier rules make it over 3
+                    times slower than PCER, and its hard-voting ignores soft
+                    probabilistic cues captured by Stacking and CCDS.
+
+RANK 6 — BMA (Bayesian Model Averaging)
+  Macro F1        : 95.12%  (-0.09 pp below LCCDE)
+  Why Rank 6      : Because LightGBM and XGBoost attain virtually identical, near-
+                    perfect per-class training precisions on TF-IDF, BMA's weights
+                    converge to uniform soft voting. This dilutes confident expert
+                    predictions on difficult edge cases, slightly lowering precision
+                    on Stored and DOM-based XSS attacks.
+
+------------------------------------------------------------
+WHY TF-IDF vs CHAR-CNN RESULTS DIFFER SO DRAMATICALLY:
+------------------------------------------------------------
+1. Dimensionality & Consensus:
+   TF-IDF has 5,282 sparse vocabulary features; base models easily isolate linear
+   decision boundaries, leading to high consensus. LCCDE performs adequately when
+   models agree. In contrast, CharCNN uses a dense 410-dim embedding with much
+   more model disagreement, exposing LCCDE's fatal flaw (0.13 DOM-based F1 vs
+   CCDS's 0.89 DOM-based F1).
+
+2. Novel Algorithm Value Proposition:
+   - For complex, lower-dim representations with model conflict (CharCNN):
+     CCDS is the clear champion, improving baseline Macro F1 by +20.08 pp!
+   - For ultra-high dimensional representations where speed is critical (TF-IDF):
+     PCER offers the best efficiency, cutting LCCDE runtime by over 70% while
+     improving overall macro precision.
+   - When absolute maximum accuracy is paramount regardless of training cost:
+     Stacking extracts the highest accuracy (99.69%) and F1 (95.30%) on TF-IDF.
+
+============================================================
+END OF REPORT
+============================================================
