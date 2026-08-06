@@ -95,7 +95,7 @@ def main():
     cache_test_emb = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("⚡ Loading cached Sentence embeddings...")
+        log("[CACHE] Loading cached Sentence embeddings...")
         X_train_embed = np.load(cache_train_emb)
         X_test_embed = np.load(cache_test_emb)
         caxf_time = 0.0
@@ -151,11 +151,19 @@ def main():
     # TRAIN BASE MODELS
     # ===============================
     cache_lgbm = f"{CACHE_DIR}/lgbm{suffix}.pkl"
+    if not os.path.exists(cache_lgbm):
+        cache_lgbm = f"{CACHE_DIR}/lgbm.pkl"
+
     cache_xgb = f"{CACHE_DIR}/xgb{suffix}.pkl"
+    if not os.path.exists(cache_xgb):
+        cache_xgb = f"{CACHE_DIR}/xgb.pkl"
+
     cache_cat = f"{CACHE_DIR}/cat{suffix}.pkl"
+    if not os.path.exists(cache_cat):
+        cache_cat = f"{CACHE_DIR}/cat.pkl"
 
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
-        log("⚡ Loading trained base models...")
+        log("[CACHE] Loading trained base models...")
         lgbm = joblib.load(cache_lgbm)
         xgb = joblib.load(cache_xgb)
         cat = joblib.load(cache_cat)

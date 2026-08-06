@@ -1,0 +1,131 @@
+============================================================
+ENSEMBLE COMPARISON REPORT — CAXF SENTENCE EMBEDDING (Seed 42)
+============================================================
+Feature Extractor : Sentence Transformer (666-dim embeddings)
+Base Models       : LightGBM + XGBoost + CatBoost
+Train/Test Split  : 70:30, seed=42, stratified
+Test Samples      : 3276
+Dataset           : Final_XSS_4class_dataset.csv (10917 samples)
+Classes           : DOM-based XSS (9), Normal (1079),
+                    Reflected XSS (2039), Stored XSS (149)
+============================================================
+
+
+------------------------------------------------------------
+SECTION 1: OVERALL RANKING & METRICS
+------------------------------------------------------------
+Rank  Algorithm           Accuracy   Precision  Recall     F1         Inf.Time
+                                     (Macro)    (Macro)    (Macro)
+------------------------------------------------------------
+1 🏆   BMA                 99.63%     99.29%     93.38%     95.98%     0.11 s
+1 🏆   PCER (Novel, Tied)  99.63%     99.29%     93.38%     95.98%     0.22 s
+1 🏆   WSV (Tied)          99.63%     99.29%     93.38%     95.98%     0.09 s
+4     Stacking            99.66%     98.28%     94.29%     95.91%     0.09 s
+5     CCDS (Novel)        99.60%     99.12%     93.37%     95.90%     1.52 s
+6     LCCDE (baseline)    99.57%     98.95%     93.35%     95.80%     0.23 s
+------------------------------------------------------------
+WSV  = Weighted Soft Voting
+BMA  = Bayesian Model Averaging
+PCER = Per-Class Expert Routing (custom novel)
+CCDS = Confidence-Calibrated Dynamic Selection (custom novel)
+Stacking = Stacked Generalisation (OOF, LogReg meta-learner)
+
+
+------------------------------------------------------------
+SECTION 2: PER-CLASS F1 SCORE
+------------------------------------------------------------
+Rank  Algorithm           DOM-based   Normal      Reflected   Stored
+                          XSS (9)     (1079)      XSS (2039)  XSS (149)
+------------------------------------------------------------
+1 🏆   BMA                 0.88 ✅     1.00 ✅     1.00 ✅     0.97 ✅
+1 🏆   PCER (Novel)        0.88 ✅     1.00 ✅     1.00 ✅     0.97 ✅
+1 🏆   WSV                 0.88 ✅     1.00 ✅     1.00 ✅     0.97 ✅
+4     Stacking            0.88 ✅     1.00 ✅     1.00 ✅     0.96
+5     CCDS (Novel)        0.88 ✅     1.00 ✅     1.00 ✅     0.97 ✅
+6     LCCDE (baseline)    0.88 ✅     1.00 ✅     1.00 ✅     0.96
+------------------------------------------------------------
+
+
+------------------------------------------------------------
+SECTION 3: PER-CLASS PRECISION / RECALL
+------------------------------------------------------------
+
+--- DOM-based XSS (support=9) ---
+Algorithm           Precision   Recall      F1
+BMA 🏆              1.00        0.78        0.88
+PCER (Novel) 🏆     1.00        0.78        0.88
+WSV 🏆              1.00        0.78        0.88
+Stacking            1.00        0.78        0.88
+CCDS (Novel)        1.00        0.78        0.88
+LCCDE (baseline)    1.00        0.78        0.88
+
+--- Normal (support=1079) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         1.00        1.00        1.00
+BMA                 0.99        1.00        1.00
+PCER (Novel)        0.99        1.00        1.00
+WSV                 0.99        1.00        1.00
+CCDS (Novel)        0.99        1.00        1.00
+LCCDE (baseline)    0.99        1.00        1.00
+
+--- Reflected XSS (support=2039) ---
+Algorithm           Precision   Recall      F1
+BMA 🏆              1.00        1.00        1.00
+PCER (Novel) 🏆     1.00        1.00        1.00
+WSV 🏆              1.00        1.00        1.00
+Stacking 🏆         1.00        1.00        1.00
+CCDS (Novel) 🏆     1.00        1.00        1.00
+LCCDE (baseline) 🏆 1.00        1.00        1.00
+
+--- Stored XSS (support=149) ---
+Algorithm           Precision   Recall      F1
+BMA 🏆              0.98        0.96        0.97
+PCER (Novel) 🏆     0.98        0.96        0.97
+WSV 🏆              0.98        0.96        0.97
+CCDS (Novel)        0.97        0.96        0.97
+LCCDE (baseline)    0.97        0.96        0.96
+Stacking            0.93        1.00        0.96
+
+
+------------------------------------------------------------
+SECTION 4: IMPROVEMENT OVER LCCDE BASELINE (BY RANK)
+------------------------------------------------------------
+Rank  Algorithm           ΔAccuracy   ΔMacro F1   ΔDOM F1
+------------------------------------------------------------
+1     BMA 🏆              +0.06 pp    +0.18 pp    +0.00
+1     PCER (Novel, Tied)  +0.06 pp    +0.18 pp    +0.00
+1     WSV (Tied)          +0.06 pp    +0.18 pp    +0.00
+4     Stacking            +0.09 pp    +0.11 pp    +0.00
+5     CCDS (Novel)        +0.03 pp    +0.10 pp    +0.00
+------------------------------------------------------------
+pp = percentage points
+
+
+------------------------------------------------------------
+SECTION 5: RANKINGS & WINNER ANALYSIS
+------------------------------------------------------------
+
+🏆 RANK 1 — WINNERS (TIED): BMA, PCER, WSV
+  Macro F1        : 95.98%  (highest Average F1 score across all experiments)
+  Macro Precision : 99.29%  (highest precision across all experiments)
+  DOM-based P/R/F1: P=1.00, R=0.78, F1=0.88
+  Inference Time  : 0.09s - 0.22s
+  Why Rank 1      : Sentence Embeddings provide extremely dense, semantic feature
+                    representations (666-dim), leading to near-perfect consensus among
+                    all 3 base models. BMA, PCER, and WSV achieve 99.29% macro precision.
+
+RANK 4 — Stacking (Stacked Generalisation)
+  Accuracy        : 99.66%  (highest accuracy)
+  Macro Recall    : 94.29%  (highest recall, 100% on Stored XSS)
+  Macro F1        : 95.91%
+
+RANK 5 — CCDS (Confidence-Calibrated Dynamic Selection)
+  Macro F1        : 95.90%
+  Inference Time  : 1.52 s
+
+RANK 6 — LCCDE (Baseline)
+  Macro F1        : 95.80%
+
+============================================================
+END OF REPORT
+============================================================
