@@ -1,0 +1,47 @@
+===========================================================================
+ENSEMBLE ABLATION STUDY: STRICT LCCDE (ALG 2) VS. PROPOSED MVE-CT
+===========================================================================
+
+===========================================================================
+EVALUATING FEATURE SET: CAXF + TF-IDF
+===========================================================================
+Computing Out-Of-Fold Class Leaders for Strict LCCDE...
+Leader Map (0=LGBM, 1=XGB, 2=Cat): {0: 1, 1: 0, 2: 1, 3: 0}
+
+Results for CAXF + TF-IDF:
+  Strict LCCDE F1 : 0.9630 (DOM F1: 0.8889)
+  Proposed MVE-CT F1: 0.9521 (DOM F1: 0.8421)
+  Performance Delta : -1.09%
+  Winner            : Strict LCCDE
+
+===========================================================================
+EVALUATING FEATURE SET: CAXF + CharCNN
+===========================================================================
+Computing Out-Of-Fold Class Leaders for Strict LCCDE...
+Leader Map (0=LGBM, 1=XGB, 2=Cat): {0: 1, 1: 0, 2: 1, 3: 1}
+
+Results for CAXF + CharCNN:
+  Strict LCCDE F1 : 0.9505 (DOM F1: 0.8421)
+  Proposed MVE-CT F1: 0.9641 (DOM F1: 0.8889)
+  Performance Delta : +1.36%
+  Winner            : Proposed MVE-CT
+
+===========================================================================
+EVALUATING FEATURE SET: CAXF + Sentence Embedding
+===========================================================================
+Computing Out-Of-Fold Class Leaders for Strict LCCDE...
+Leader Map (0=LGBM, 1=XGB, 2=Cat): {0: 0, 1: 0, 2: 0, 3: 0}
+
+Results for CAXF + Sentence Embedding:
+  Strict LCCDE F1 : 0.9580 (DOM F1: 0.8750)
+  Proposed MVE-CT F1: 0.9580 (DOM F1: 0.8750)
+  Performance Delta : +0.00%
+  Winner            : Tie
+
+===========================================================================
+SUMMARY ABLATION COMPARISON TABLE
+===========================================================================
+              Feature Set  Strict LCCDE F1  Strict DOM F1  Proposed MVE-CT F1  Proposed DOM F1 Delta F1 (%)          Winner
+            CAXF + TF-IDF           0.9630         0.8889              0.9521           0.8421       -1.09%    Strict LCCDE
+           CAXF + CharCNN           0.9505         0.8421              0.9641           0.8889       +1.36% Proposed MVE-CT
+CAXF + Sentence Embedding           0.9580         0.8750              0.9580           0.8750       +0.00%             Tie
