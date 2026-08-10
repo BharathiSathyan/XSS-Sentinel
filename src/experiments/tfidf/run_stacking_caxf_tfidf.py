@@ -1,10 +1,13 @@
 """
-Experiment: Confidence-Calibrated Dynamic Selection (CCDS) — CAXF Sentence Embeddings
-=======================================================================================
-Dynamic model routing based on prediction entropy and disagreement.
+Experiment: Stacked Generalisation — CAXF TF-IDF Features
+===========================================================
+Uses Out-of-Fold (OOF) meta-feature generation to train a Logistic Regression
+meta-learner on top of LGBM + XGBoost + CatBoost base models.
+
+OOF ensures NO data leakage: meta-learner always trains on held-out fold predictions.
 
 Run from src/ directory:
-    python experiments/run_ccds_caxf_sentence_embedding.py
+    python experiments/run_stacking_caxf_tfidf.py
 """
 
 import time
@@ -17,8 +20,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 _here = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))  # project root
+sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))     # src/
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, classification_report,
@@ -30,8 +33,8 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
-from src.ensemble.ccds import CCDS
+from src.ensemble.stacking import StackingEnsemble
+from cache_utils import resolve_cache_path, load_embedding
 from config import SEED
 
 # ===============================
@@ -39,37 +42,17 @@ from config import SEED
 # ===============================
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-
-CACHE_DIR = "results/cache/sentence_embedding"
-OUTPUT_DIR = "results/caxf_sentence_embedding_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/tfidf")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_tfidf_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TXT_OUT = os.path.join(OUTPUT_DIR, f"ccds_results{suffix}.txt")
-PNG_OUT = os.path.join(OUTPUT_DIR, f"ccds_results{suffix}.png")
+TXT_OUT = os.path.join(OUTPUT_DIR, f"stacking_results{suffix}.txt")
+PNG_OUT = os.path.join(OUTPUT_DIR, f"stacking_results{suffix}.png")
 
-
-class CatBoostIntAdapter:
-    def __init__(self, model, label_encoder):
-        self._model = model
-        self._le = label_encoder
-
-    def predict(self, X):
-        str_preds = self._model.predict(X)
-        flat = [p[0] if hasattr(p, "__len__") and not isinstance(p, str) else p
-                for p in str_preds]
-        if len(flat) > 0 and isinstance(flat[0], (int, np.integer)):
-            return np.array(flat, dtype=int)
-        return self._le.transform(flat)
-
-    def predict_proba(self, X):
-        return self._model.predict_proba(X)
+# Cache the trained stacking ensemble
+STACK_CACHE = os.path.join(CACHE_DIR, f"stacking_ensemble{suffix}.pkl")
 
 
 def main():
@@ -80,13 +63,13 @@ def main():
         log_lines.append(str(msg))
 
     log("=" * 60)
-    log("CCDS ENSEMBLE PIPELINE — CAXF SENTENCE EMBEDDING")
-    log("Confidence-Calibrated Dynamic Selection (Novel Algorithm)")
-    log("Routing: JSD disagreement spectrum -> entropy-weighted strategies")
+    log("STACKING ENSEMBLE PIPELINE — CAXF TF-IDF")
+    log("Stacked Generalisation with OOF meta-feature generation")
+    log("Meta-learner: Logistic Regression (L2, multinomial)")
     log("=" * 60)
 
     # ---------------------------------------------------------------
-    # Dataset
+    # Dataset — identical split to LCCDE
     # ---------------------------------------------------------------
     log("Loading dataset...")
     df = pd.read_csv(DATA_PATH).drop_duplicates()
@@ -100,7 +83,9 @@ def main():
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
 
+    log("=" * 60)
     log(f"Splitting dataset (70:30, seed={SEED})...")
+    log("=" * 60)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y_encoded, test_size=0.30, random_state=SEED, stratify=y_encoded
     )
@@ -109,35 +94,18 @@ def main():
     log()
 
     # ---------------------------------------------------------------
-    # Load cached Sentence embeddings
+    # Load cached embeddings
     # ---------------------------------------------------------------
-    cache_train_emb = f"{CACHE_DIR}/X_train_embed{suffix}.npy"
-    if not os.path.exists(cache_train_emb):
-        cache_train_emb = f"{CACHE_DIR}/X_train_embed.npy"
-
-    cache_test_emb  = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
-    if not os.path.exists(cache_test_emb):
-        cache_test_emb  = f"{CACHE_DIR}/X_test_embed.npy"
+    cache_train_emb = resolve_cache_path(CACHE_DIR, "X_train_embed", suffix, "npy")
+    cache_test_emb  = resolve_cache_path(CACHE_DIR, "X_test_embed",  suffix, "npy")
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("[CACHE] Loading cached Sentence embeddings...")
-        X_train_embed = np.load(cache_train_emb).astype(np.float32)
-        X_test_embed  = np.load(cache_test_emb).astype(np.float32)
+        log("[CACHE] Loading cached TF-IDF embeddings...")
+        X_train_embed = load_embedding(cache_train_emb)
+        X_test_embed  = load_embedding(cache_test_emb)
     else:
-        log("Running CAXF Sentence Embedding feature extraction...")
-        t0 = time.time()
-        caxf = CAXFExtractor()
-        caxf.fit(X_train)
-        X_train_embed = caxf.transform(X_train)
-        X_test_embed  = caxf.transform(X_test)
-        if hasattr(X_train_embed, "toarray"):
-            X_train_embed = X_train_embed.toarray()
-            X_test_embed  = X_test_embed.toarray()
-        np.save(cache_train_emb, X_train_embed)
-        np.save(cache_test_emb, X_test_embed)
-        log(f"Saved. Time: {round(time.time()-t0, 2)}s")
-        X_train_embed = X_train_embed.astype(np.float32)
-        X_test_embed  = X_test_embed.astype(np.float32)
+        log("ERROR: Cached embeddings not found. Run run_lccde_caxf_tfidf.py first.")
+        return
 
     log(f"Embedding shape (train): {X_train_embed.shape}")
     log(f"Embedding shape (test) : {X_test_embed.shape}")
@@ -156,26 +124,17 @@ def main():
     y_train_orig = y_train
 
     # ---------------------------------------------------------------
-    # Load base models
+    # Load / train base models
     # ---------------------------------------------------------------
-    cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
-    if not os.path.exists(cache_lgbm):
-        cache_lgbm = os.path.join(CACHE_DIR, "lgbm.pkl")
-
-    cache_xgb = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
-    if not os.path.exists(cache_xgb):
-        cache_xgb = os.path.join(CACHE_DIR, "xgb.pkl")
-
-    cache_cat = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
-    if not os.path.exists(cache_cat):
-        cache_cat = os.path.join(CACHE_DIR, "cat.pkl")
+    cache_lgbm = resolve_cache_path(CACHE_DIR, "lgbm", suffix, "pkl")
+    cache_xgb  = resolve_cache_path(CACHE_DIR, "xgb",  suffix, "pkl")
+    cache_cat  = resolve_cache_path(CACHE_DIR, "cat",  suffix, "pkl")
 
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
         log("[CACHE] Loading trained base models...")
-        lgbm     = joblib.load(cache_lgbm)
-        xgb      = joblib.load(cache_xgb)
-        _cat_raw = joblib.load(cache_cat)
-        cat      = CatBoostIntAdapter(_cat_raw, le)
+        lgbm = joblib.load(cache_lgbm)
+        xgb  = joblib.load(cache_xgb)
+        cat  = joblib.load(cache_cat)
     else:
         log("Training base models...")
         lgbm = LGBMClassifier(
@@ -199,34 +158,61 @@ def main():
             cls: total / (len(class_counts) * count)
             for cls, count in class_counts.items()
         }
-        _cat_raw = CatBoostClassifier(
+        cat = CatBoostClassifier(
             loss_function="MultiClass", iterations=100, learning_rate=0.1,
             depth=4, class_weights=class_weights, random_seed=SEED,
             thread_count=4, task_type="CPU", verbose=False
         )
-        _cat_raw.fit(X_train_orig, y_train_orig)
-        joblib.dump(_cat_raw, cache_cat)
-        cat = CatBoostIntAdapter(_cat_raw, le)
+        cat.fit(X_train_orig, y_train_orig)
+        joblib.dump(cat, cache_cat)
 
     # ---------------------------------------------------------------
-    # Evaluate CCDS Ensemble
+    # Stacking: OOF training or load from cache
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Evaluating CCDS Ensemble...")
-    log("Thresholds: theta_low=0.05, theta_high=0.15, min_confidence=0.5")
+    log("Stacking Ensemble — OOF Meta-Feature Generation")
     log("=" * 60)
 
-    ccds = CCDS(
-        models=[lgbm, xgb, cat],
-        theta_low=0.05,
-        theta_high=0.15,
-        min_confidence=0.5
-    )
+    base_models = [
+        ("lgbm", lgbm),
+        ("xgb",  xgb),
+        ("cat",  cat),
+    ]
+
+    if os.path.exists(STACK_CACHE):
+        log(f"[CACHE] Loading cached stacking ensemble from: {STACK_CACHE}")
+        stack = joblib.load(STACK_CACHE)
+    else:
+        log("Generating OOF meta-features with 5-fold StratifiedKFold...")
+        log("(Each fold trains fresh copies of base models — prevents data leakage)")
+        t0 = time.time()
+        stack = StackingEnsemble(
+            base_models=base_models,
+            n_folds=5,
+            random_state=SEED,
+            n_classes=4
+        )
+        # Note: fit() receives SMOTE-balanced train for base model re-training
+        # but we pass original labels for stratification consistency
+        # We pass original X_train_embed to match what the full models saw
+        stack.fit(X_train_embed, y_train)
+        oof_time = round(time.time() - t0, 2)
+        log(f"OOF meta-feature generation + meta-learner training time: {oof_time}s")
+        joblib.dump(stack, STACK_CACHE)
+        log(f"Stacking ensemble cached to: {STACK_CACHE}")
+    log()
+
+    # ---------------------------------------------------------------
+    # Evaluate
+    # ---------------------------------------------------------------
+    log("=" * 60)
+    log("Evaluating Stacking Ensemble...")
+    log("=" * 60)
 
     t0 = time.time()
-    final_preds = ccds.predict(X_test_embed)
+    final_preds = stack.predict(X_test_embed)
     inf_time = round(time.time() - t0, 4)
-    log(f"CCDS Inference time: {inf_time} seconds\n")
+    log(f"Stacking Inference time: {inf_time} seconds\n")
 
     y_test_labels = le.inverse_transform(y_test)
     pred_labels   = le.inverse_transform(final_preds.astype(int))
@@ -252,7 +238,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix — CCDS Ensemble (CAXF Sentence Embedding)")
+    plt.title("Confusion Matrix — Stacking Ensemble (CAXF TF-IDF)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

@@ -1,11 +1,10 @@
 """
-Experiment: Per-Class Expert Routing (PCER) — CAXF TF-IDF Features
-=====================================================================
-Novel algorithm: pre-computes per-class precision of each base model on training
-data, identifies the expert model per class, and routes inference accordingly.
+Experiment: Weighted Soft Voting (WSV) — CAXF Sentence Embeddings
+==================================================================
+Weighted Soft Voting based on validation macro-F1 scores.
 
 Run from src/ directory:
-    python experiments/run_pcer_caxf_tfidf.py
+    python experiments/run_wsv_caxf_sentence_embedding.py
 """
 
 import time
@@ -18,8 +17,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 _here = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))  # project root
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))     # src/
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, classification_report,
@@ -31,8 +33,8 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.ensemble.pcer import PCER
-from cache_utils import resolve_cache_path, load_embedding
+from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+from src.ensemble.weighted_soft_voting import WeightedSoftVoting
 from config import SEED
 
 # ===============================
@@ -40,20 +42,31 @@ from config import SEED
 # ===============================
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-
-CACHE_DIR = "results/cache/tfidf"
-OUTPUT_DIR = "results/caxf_tfidf_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/sentence_embedding")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_sentence_embedding_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TXT_OUT = os.path.join(OUTPUT_DIR, f"pcer_results{suffix}.txt")
-PNG_OUT = os.path.join(OUTPUT_DIR, f"pcer_results{suffix}.png")
+TXT_OUT = os.path.join(OUTPUT_DIR, f"wsv_results{suffix}.txt")
+PNG_OUT = os.path.join(OUTPUT_DIR, f"wsv_results{suffix}.png")
+
+
+class CatBoostIntAdapter:
+    def __init__(self, model, label_encoder):
+        self._model = model
+        self._le = label_encoder
+
+    def predict(self, X):
+        str_preds = self._model.predict(X)
+        flat = [p[0] if hasattr(p, "__len__") and not isinstance(p, str) else p
+                for p in str_preds]
+        if len(flat) > 0 and isinstance(flat[0], (int, np.integer)):
+            return np.array(flat, dtype=int)
+        return self._le.transform(flat)
+
+    def predict_proba(self, X):
+        return self._model.predict_proba(X)
 
 
 def main():
@@ -64,9 +77,8 @@ def main():
         log_lines.append(str(msg))
 
     log("=" * 60)
-    log("PCER ENSEMBLE PIPELINE — CAXF TF-IDF")
-    log("Per-Class Expert Routing (Novel Algorithm)")
-    log("Expert assignment via per-class precision on training data")
+    log("WSV ENSEMBLE PIPELINE — CAXF SENTENCE EMBEDDING")
+    log("Weighted Soft Voting (macro-F1 weights from training set)")
     log("=" * 60)
 
     # ---------------------------------------------------------------
@@ -93,18 +105,35 @@ def main():
     log()
 
     # ---------------------------------------------------------------
-    # Load cached embeddings
+    # Load cached Sentence embeddings
     # ---------------------------------------------------------------
-    cache_train_emb = resolve_cache_path(CACHE_DIR, "X_train_embed", suffix, "npy")
-    cache_test_emb  = resolve_cache_path(CACHE_DIR, "X_test_embed",  suffix, "npy")
+    cache_train_emb = f"{CACHE_DIR}/X_train_embed{suffix}.npy"
+    if not os.path.exists(cache_train_emb):
+        cache_train_emb = f"{CACHE_DIR}/X_train_embed.npy"
+
+    cache_test_emb  = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
+    if not os.path.exists(cache_test_emb):
+        cache_test_emb  = f"{CACHE_DIR}/X_test_embed.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("[CACHE] Loading cached TF-IDF embeddings...")
-        X_train_embed = load_embedding(cache_train_emb)
-        X_test_embed  = load_embedding(cache_test_emb)
+        log("[CACHE] Loading cached Sentence embeddings...")
+        X_train_embed = np.load(cache_train_emb).astype(np.float32)
+        X_test_embed  = np.load(cache_test_emb).astype(np.float32)
     else:
-        log("ERROR: Cached embeddings not found. Run run_lccde_caxf_tfidf.py first.")
-        return
+        log("Running CAXF Sentence Embedding feature extraction...")
+        t0 = time.time()
+        caxf = CAXFExtractor()
+        caxf.fit(X_train)
+        X_train_embed = caxf.transform(X_train)
+        X_test_embed  = caxf.transform(X_test)
+        if hasattr(X_train_embed, "toarray"):
+            X_train_embed = X_train_embed.toarray()
+            X_test_embed  = X_test_embed.toarray()
+        np.save(cache_train_emb, X_train_embed)
+        np.save(cache_test_emb, X_test_embed)
+        log(f"Saved. Time: {round(time.time()-t0, 2)}s")
+        X_train_embed = X_train_embed.astype(np.float32)
+        X_test_embed  = X_test_embed.astype(np.float32)
 
     log(f"Embedding shape (train): {X_train_embed.shape}")
     log(f"Embedding shape (test) : {X_test_embed.shape}")
@@ -123,19 +152,28 @@ def main():
     y_train_orig = y_train
 
     # ---------------------------------------------------------------
-    # Load / train base models
+    # Load base models
     # ---------------------------------------------------------------
-    cache_lgbm = resolve_cache_path(CACHE_DIR, "lgbm", suffix, "pkl")
-    cache_xgb  = resolve_cache_path(CACHE_DIR, "xgb",  suffix, "pkl")
-    cache_cat  = resolve_cache_path(CACHE_DIR, "cat",  suffix, "pkl")
+    cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
+    if not os.path.exists(cache_lgbm):
+        cache_lgbm = os.path.join(CACHE_DIR, "lgbm.pkl")
+
+    cache_xgb = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
+    if not os.path.exists(cache_xgb):
+        cache_xgb = os.path.join(CACHE_DIR, "xgb.pkl")
+
+    cache_cat = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
+    if not os.path.exists(cache_cat):
+        cache_cat = os.path.join(CACHE_DIR, "cat.pkl")
 
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
         log("[CACHE] Loading trained base models...")
-        lgbm = joblib.load(cache_lgbm)
-        xgb  = joblib.load(cache_xgb)
-        cat  = joblib.load(cache_cat)
+        lgbm     = joblib.load(cache_lgbm)
+        xgb      = joblib.load(cache_xgb)
+        _cat_raw = joblib.load(cache_cat)
+        cat      = CatBoostIntAdapter(_cat_raw, le)
     else:
-        log("Training base models...")
+        log("Training base models (LightGBM, XGBoost, CatBoost)...")
         lgbm = LGBMClassifier(
             objective="multiclass", num_class=4, n_estimators=100,
             learning_rate=0.1, random_state=SEED, n_jobs=-1
@@ -157,54 +195,42 @@ def main():
             cls: total / (len(class_counts) * count)
             for cls, count in class_counts.items()
         }
-        cat = CatBoostClassifier(
+        _cat_raw = CatBoostClassifier(
             loss_function="MultiClass", iterations=100, learning_rate=0.1,
             depth=4, class_weights=class_weights, random_seed=SEED,
             thread_count=4, task_type="CPU", verbose=False
         )
-        cat.fit(X_train_orig, y_train_orig)
-        joblib.dump(cat, cache_cat)
+        _cat_raw.fit(X_train_orig, y_train_orig)
+        joblib.dump(_cat_raw, cache_cat)
+        cat = CatBoostIntAdapter(_cat_raw, le)
 
     # ---------------------------------------------------------------
-    # PCER: compute expert table from training precision
+    # WSV: estimate per-model weights from training macro-F1
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Computing PCER expert table from training set...")
+    log("Computing WSV weights from training macro-F1...")
     log("=" * 60)
 
-    pcer = PCER(
-        models=[lgbm, xgb, cat],
-        n_classes=4,
-        confidence_threshold=0.5
-    )
-    pcer.fit(X_train_embed, y_train)
+    wsv = WeightedSoftVoting([lgbm, xgb, cat])
+    wsv.fit(X_train_embed, y_train)
 
-    class_names  = le.classes_
-    model_names  = ["LightGBM", "XGBoost", "CatBoost"]
-
-    log("Per-class precision matrix (Laplace-smoothed):")
-    header = f"  {'Class':<20}" + "".join(f"{n:<12}" for n in model_names) + "  Expert"
-    log(header)
-    for c_idx, c_name in enumerate(class_names):
-        row = f"  {c_name:<20}"
-        for k in range(len(model_names)):
-            row += f"{pcer.class_precision[c_idx, k]:.4f}      "
-        expert_name = model_names[pcer.expert_table[c_idx]]
-        row += f"  -> {expert_name}"
-        log(row)
+    model_names = ["LightGBM", "XGBoost", "CatBoost"]
+    log("Per-model macro-F1 weights:")
+    for k, name in enumerate(model_names):
+        log(f"  {name}: {wsv.weights[k]:.4f}")
     log()
 
     # ---------------------------------------------------------------
-    # Evaluate
+    # Evaluate WSV Ensemble
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Evaluating PCER Ensemble...")
+    log("Evaluating WSV Ensemble...")
     log("=" * 60)
 
     t0 = time.time()
-    final_preds = pcer.predict(X_test_embed)
+    final_preds = wsv.predict(X_test_embed)
     inf_time = round(time.time() - t0, 4)
-    log(f"PCER Inference time: {inf_time} seconds\n")
+    log(f"WSV Inference time: {inf_time} seconds\n")
 
     y_test_labels = le.inverse_transform(y_test)
     pred_labels   = le.inverse_transform(final_preds.astype(int))
@@ -230,7 +256,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix — PCER Ensemble (CAXF TF-IDF)")
+    plt.title("Confusion Matrix — WSV Ensemble (CAXF Sentence Embedding)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

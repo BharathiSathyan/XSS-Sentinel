@@ -22,7 +22,7 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor_tfidf import CAXFExtractor
+from src.caxf.caxf_extractor_charcnn import CAXFExtractor
 from src.ensemble.lccde import LCCDE
 
 # ===============================
@@ -32,14 +32,9 @@ from config import SEED
 
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-CACHE_DIR = "results/cache/tfidf"
-OUTPUT_DIR = "results/caxf_tfidf_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/char_cnn")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_char_cnn_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -54,7 +49,7 @@ def main():
         log_lines.append(msg)
 
     log("="*60)
-    log("LCCDE ENSEMBLE PIPELINE — CAXF TF-IDF")
+    log("LCCDE ENSEMBLE PIPELINE — CAXF CHAR-CNN")
     log("="*60)
     log("Loading dataset...")
     log("="*60)
@@ -70,6 +65,22 @@ def main():
 
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
+
+    class CatBoostIntAdapter:
+        def __init__(self, model, label_encoder):
+            self._model = model
+            self._le = label_encoder
+
+        def predict(self, X):
+            str_preds = self._model.predict(X)
+            flat = [p[0] if hasattr(p, "__len__") and not isinstance(p, str) else p
+                    for p in str_preds]
+            if len(flat) > 0 and isinstance(flat[0], (int, np.integer)):
+                return np.array(flat, dtype=int)
+            return self._le.transform(flat)
+
+        def predict_proba(self, X):
+            return self._model.predict_proba(X)
 
     log("="*60)
     log("Splitting dataset (70:30)...")
@@ -95,13 +106,13 @@ def main():
     cache_test_emb = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("[CACHE] Loading cached TF-IDF embeddings...")
+        log("[CACHE] Loading cached CharCNN embeddings...")
         X_train_embed = np.load(cache_train_emb)
         X_test_embed = np.load(cache_test_emb)
         caxf_time = 0.0
     else:
         log("="*60)
-        log("Running CAXF Feature Extraction (TF-IDF)...")
+        log("Running CAXF Feature Extraction (CharCNN)...")
         log("="*60)
         start = time.time()
         caxf = CAXFExtractor()
@@ -117,7 +128,7 @@ def main():
         np.save(cache_train_emb, X_train_embed)
         np.save(cache_test_emb, X_test_embed)
         caxf_time = round(time.time() - start, 2)
-        log(f"Saved embeddings checkpoint.")
+        log("Saved embeddings checkpoint.")
 
     X_train_embed = X_train_embed.astype(np.float32)
     X_test_embed = X_test_embed.astype(np.float32)
@@ -150,23 +161,24 @@ def main():
     # ===============================
     # TRAIN BASE MODELS
     # ===============================
-    cache_lgbm = f"{CACHE_DIR}/lgbm{suffix}.pkl"
+    cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
     if not os.path.exists(cache_lgbm):
-        cache_lgbm = f"{CACHE_DIR}/lgbm.pkl"
+        cache_lgbm = os.path.join(CACHE_DIR, "lgbm.pkl")
 
-    cache_xgb = f"{CACHE_DIR}/xgb{suffix}.pkl"
+    cache_xgb = os.path.join(CACHE_DIR, f"xgb{suffix}.pkl")
     if not os.path.exists(cache_xgb):
-        cache_xgb = f"{CACHE_DIR}/xgb.pkl"
+        cache_xgb = os.path.join(CACHE_DIR, "xgb.pkl")
 
-    cache_cat = f"{CACHE_DIR}/cat{suffix}.pkl"
+    cache_cat = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
     if not os.path.exists(cache_cat):
-        cache_cat = f"{CACHE_DIR}/cat.pkl"
+        cache_cat = os.path.join(CACHE_DIR, "cat.pkl")
 
     if os.path.exists(cache_lgbm) and os.path.exists(cache_xgb) and os.path.exists(cache_cat):
         log("[CACHE] Loading trained base models...")
         lgbm = joblib.load(cache_lgbm)
         xgb = joblib.load(cache_xgb)
-        cat = joblib.load(cache_cat)
+        _cat_raw = joblib.load(cache_cat)
+        cat = CatBoostIntAdapter(_cat_raw, le)
         train_time_lgbm, train_time_xgb, train_time_cat = 0.0, 0.0, 0.0
     else:
         # LightGBM
@@ -247,7 +259,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix - LCCDE (CAXF TF-IDF)")
+    plt.title("Confusion Matrix - LCCDE (CAXF CharCNN)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

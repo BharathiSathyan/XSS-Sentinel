@@ -22,7 +22,7 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+from src.caxf.caxf_extractor_tfidf import CAXFExtractor
 from src.ensemble.lccde import LCCDE
 
 # ===============================
@@ -32,14 +32,9 @@ from config import SEED
 
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-CACHE_DIR = "results/cache/sentence_embedding"
-OUTPUT_DIR = "results/caxf_sentence_embedding_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/tfidf")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_tfidf_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -54,7 +49,7 @@ def main():
         log_lines.append(msg)
 
     log("="*60)
-    log("LCCDE ENSEMBLE PIPELINE — CAXF SENTENCE EMBEDDING")
+    log("LCCDE ENSEMBLE PIPELINE — CAXF TF-IDF")
     log("="*60)
     log("Loading dataset...")
     log("="*60)
@@ -95,13 +90,13 @@ def main():
     cache_test_emb = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("[CACHE] Loading cached Sentence embeddings...")
+        log("[CACHE] Loading cached TF-IDF embeddings...")
         X_train_embed = np.load(cache_train_emb)
         X_test_embed = np.load(cache_test_emb)
         caxf_time = 0.0
     else:
         log("="*60)
-        log("Running CAXF Feature Extraction (Sentence Embedding)...")
+        log("Running CAXF Feature Extraction (TF-IDF)...")
         log("="*60)
         start = time.time()
         caxf = CAXFExtractor()
@@ -117,7 +112,7 @@ def main():
         np.save(cache_train_emb, X_train_embed)
         np.save(cache_test_emb, X_test_embed)
         caxf_time = round(time.time() - start, 2)
-        log("Saved embeddings checkpoint.")
+        log(f"Saved embeddings checkpoint.")
 
     X_train_embed = X_train_embed.astype(np.float32)
     X_test_embed = X_test_embed.astype(np.float32)
@@ -247,7 +242,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix - LCCDE (CAXF Sentence Embedding)")
+    plt.title("Confusion Matrix - LCCDE (CAXF TF-IDF)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

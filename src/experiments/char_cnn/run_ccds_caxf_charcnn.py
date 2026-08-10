@@ -1,10 +1,11 @@
 """
-Experiment: Bayesian Model Averaging (BMA) — CAXF Sentence Embeddings
-======================================================================
-Per-class precision weights from training data + Laplace smoothing.
+Experiment: CCDS — Confidence-Calibrated Dynamic Selection — CAXF CharCNN, Seed 100
+=====================================================================================
+Novel ensemble using Jensen-Shannon Divergence and Shannon entropy to route
+each sample through a disagreement spectrum.
 
 Run from src/ directory:
-    python experiments/run_bma_caxf_sentence_embedding.py
+    python experiments/run_ccds_caxf_charcnn.py
 """
 
 import time
@@ -17,8 +18,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 _here = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, classification_report,
@@ -30,8 +34,8 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
-from src.ensemble.bma import BayesianModelAveraging
+from src.caxf.caxf_extractor_charcnn import CAXFExtractor
+from src.ensemble.ccds import CCDS
 from config import SEED
 
 # ===============================
@@ -39,20 +43,17 @@ from config import SEED
 # ===============================
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-
-CACHE_DIR = "results/cache/sentence_embedding"
-OUTPUT_DIR = "results/caxf_sentence_embedding_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/char_cnn")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_char_cnn_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TXT_OUT = os.path.join(OUTPUT_DIR, f"bma_results{suffix}.txt")
-PNG_OUT = os.path.join(OUTPUT_DIR, f"bma_results{suffix}.png")
+TXT_OUT = os.path.join(OUTPUT_DIR, f"ccds_results{suffix}.txt")
+PNG_OUT = os.path.join(OUTPUT_DIR, f"ccds_results{suffix}.png")
+
+CAT_RESULT_PATH = os.path.join(OUTPUT_DIR, f"catboost_model{suffix}.pkl")
+CAT_CACHE_PATH  = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
 
 
 class CatBoostIntAdapter:
@@ -80,9 +81,9 @@ def main():
         log_lines.append(str(msg))
 
     log("=" * 60)
-    log("BMA ENSEMBLE PIPELINE — CAXF SENTENCE EMBEDDING")
-    log("Bayesian Model Averaging — per-class precision weights")
-    log("Laplace smoothing applied for rare class stability")
+    log("CCDS ENSEMBLE PIPELINE — CAXF CHAR-CNN")
+    log("Confidence-Calibrated Dynamic Selection (Novel Algorithm)")
+    log("Routing: JSD disagreement spectrum -> entropy-weighted strategies")
     log("=" * 60)
 
     # ---------------------------------------------------------------
@@ -109,22 +110,17 @@ def main():
     log()
 
     # ---------------------------------------------------------------
-    # Load cached Sentence embeddings
+    # Load cached CharCNN embeddings
     # ---------------------------------------------------------------
     cache_train_emb = f"{CACHE_DIR}/X_train_embed{suffix}.npy"
-    if not os.path.exists(cache_train_emb):
-        cache_train_emb = f"{CACHE_DIR}/X_train_embed.npy"
-
     cache_test_emb  = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
-    if not os.path.exists(cache_test_emb):
-        cache_test_emb  = f"{CACHE_DIR}/X_test_embed.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("[CACHE] Loading cached Sentence embeddings...")
+        log("[CACHE] Loading cached CharCNN embeddings...")
         X_train_embed = np.load(cache_train_emb).astype(np.float32)
         X_test_embed  = np.load(cache_test_emb).astype(np.float32)
     else:
-        log("Running CAXF Sentence Embedding feature extraction...")
+        log("Running CAXF CharCNN feature extraction...")
         t0 = time.time()
         caxf = CAXFExtractor()
         caxf.fit(X_train)
@@ -209,38 +205,24 @@ def main():
         cat = CatBoostIntAdapter(_cat_raw, le)
 
     # ---------------------------------------------------------------
-    # BMA: estimate per-class precision weights
+    # CCDS Ensemble
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Computing BMA per-class precision weights from training set...")
+    log("Evaluating CCDS Ensemble...")
+    log("Thresholds: theta_low=0.05, theta_high=0.15, min_confidence=0.5")
     log("=" * 60)
 
-    bma = BayesianModelAveraging(models=[lgbm, xgb, cat], n_classes=4)
-    bma.fit(X_train_embed, y_train)
-
-    class_names = le.classes_
-    model_names = ["LightGBM", "XGBoost", "CatBoost"]
-    log("Per-class model weights (precision-normalised):")
-    header = f"  {'Class':<20}" + "".join(f"{n:<12}" for n in model_names)
-    log(header)
-    for c_idx, c_name in enumerate(class_names):
-        row = f"  {c_name:<20}"
-        for k in range(len(model_names)):
-            row += f"{bma.class_weights[c_idx, k]:.4f}      "
-        log(row)
-    log()
-
-    # ---------------------------------------------------------------
-    # Evaluate
-    # ---------------------------------------------------------------
-    log("=" * 60)
-    log("Evaluating BMA Ensemble...")
-    log("=" * 60)
+    ccds = CCDS(
+        models=[lgbm, xgb, cat],
+        theta_low=0.05,
+        theta_high=0.15,
+        min_confidence=0.5
+    )
 
     t0 = time.time()
-    final_preds = bma.predict(X_test_embed)
+    final_preds = ccds.predict(X_test_embed)
     inf_time = round(time.time() - t0, 4)
-    log(f"BMA Inference time: {inf_time} seconds\n")
+    log(f"CCDS Inference time: {inf_time} seconds\n")
 
     y_test_labels = le.inverse_transform(y_test)
     pred_labels   = le.inverse_transform(final_preds.astype(int))
@@ -266,7 +248,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix — BMA Ensemble (CAXF Sentence Embedding)")
+    plt.title("Confusion Matrix — CCDS Ensemble (CAXF CharCNN)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

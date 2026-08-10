@@ -1,11 +1,11 @@
 """
-Experiment: CCDS — Confidence-Calibrated Dynamic Selection — CAXF CharCNN, Seed 100
-=====================================================================================
-Novel ensemble using Jensen-Shannon Divergence and Shannon entropy to route
-each sample through a disagreement spectrum.
+Experiment: Per-Class Expert Routing (PCER) — CAXF CharCNN Features, Seed 100
+===============================================================================
+Novel algorithm: expert table built from per-class precision on training data.
+Prints which model owns each XSS class before evaluation.
 
 Run from src/ directory:
-    python experiments/run_ccds_caxf_charcnn.py
+    python experiments/run_pcer_caxf_charcnn.py
 """
 
 import time
@@ -18,8 +18,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 _here = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, classification_report,
@@ -32,7 +35,7 @@ from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
 from src.caxf.caxf_extractor_charcnn import CAXFExtractor
-from src.ensemble.ccds import CCDS
+from src.ensemble.pcer import PCER
 from config import SEED
 
 # ===============================
@@ -40,20 +43,14 @@ from config import SEED
 # ===============================
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-
-CACHE_DIR = "results/cache/charcnn"
-OUTPUT_DIR = "results/caxf_char_cnn_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/char_cnn")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_char_cnn_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TXT_OUT = os.path.join(OUTPUT_DIR, f"ccds_results{suffix}.txt")
-PNG_OUT = os.path.join(OUTPUT_DIR, f"ccds_results{suffix}.png")
+TXT_OUT = os.path.join(OUTPUT_DIR, f"pcer_results{suffix}.txt")
+PNG_OUT = os.path.join(OUTPUT_DIR, f"pcer_results{suffix}.png")
 
 CAT_RESULT_PATH = os.path.join(OUTPUT_DIR, f"catboost_model{suffix}.pkl")
 CAT_CACHE_PATH  = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
@@ -84,9 +81,9 @@ def main():
         log_lines.append(str(msg))
 
     log("=" * 60)
-    log("CCDS ENSEMBLE PIPELINE — CAXF CHAR-CNN")
-    log("Confidence-Calibrated Dynamic Selection (Novel Algorithm)")
-    log("Routing: JSD disagreement spectrum -> entropy-weighted strategies")
+    log("PCER ENSEMBLE PIPELINE — CAXF CHAR-CNN")
+    log("Per-Class Expert Routing (Novel Algorithm)")
+    log("Expert assignment via per-class precision on training data")
     log("=" * 60)
 
     # ---------------------------------------------------------------
@@ -208,24 +205,45 @@ def main():
         cat = CatBoostIntAdapter(_cat_raw, le)
 
     # ---------------------------------------------------------------
-    # CCDS Ensemble
+    # PCER: compute expert table from training precision
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Evaluating CCDS Ensemble...")
-    log("Thresholds: theta_low=0.05, theta_high=0.15, min_confidence=0.5")
+    log("Computing PCER expert table from training set...")
     log("=" * 60)
 
-    ccds = CCDS(
+    pcer = PCER(
         models=[lgbm, xgb, cat],
-        theta_low=0.05,
-        theta_high=0.15,
-        min_confidence=0.5
+        n_classes=4,
+        confidence_threshold=0.5
     )
+    pcer.fit(X_train_embed, y_train)
+
+    class_names = le.classes_
+    model_names = ["LightGBM", "XGBoost", "CatBoost"]
+
+    log("Cascading precision routing: Precision thresholds -> Cascaded decision")
+    header = f"  {'Class':<20}" + "".join(f"{n:<12}" for n in model_names) + "  Expert"
+    log(header)
+    for c_idx, c_name in enumerate(class_names):
+        row = f"  {c_name:<20}"
+        for k in range(len(model_names)):
+            row += f"{pcer.class_precision[c_idx, k]:.4f}      "
+        expert_name = model_names[pcer.expert_table[c_idx]]
+        row += f"  -> {expert_name}"
+        log(row)
+    log()
+
+    # ---------------------------------------------------------------
+    # Evaluate
+    # ---------------------------------------------------------------
+    log("=" * 60)
+    log("Evaluating PCER Ensemble...")
+    log("=" * 60)
 
     t0 = time.time()
-    final_preds = ccds.predict(X_test_embed)
+    final_preds = pcer.predict(X_test_embed)
     inf_time = round(time.time() - t0, 4)
-    log(f"CCDS Inference time: {inf_time} seconds\n")
+    log(f"PCER Inference time: {inf_time} seconds\n")
 
     y_test_labels = le.inverse_transform(y_test)
     pred_labels   = le.inverse_transform(final_preds.astype(int))
@@ -251,7 +269,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix — CCDS Ensemble (CAXF CharCNN)")
+    plt.title("Confusion Matrix — PCER Ensemble (CAXF CharCNN)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()

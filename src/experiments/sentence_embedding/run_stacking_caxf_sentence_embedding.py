@@ -1,15 +1,10 @@
 """
-Experiment: Weighted Soft Voting (WSV) — CAXF CharCNN Features, Seed 100
-==========================================================================
-Uses the same CharCNN base models as run_lccde_caxf_charcnn.py.
-
-Note on model locations:
-  - LGBM, XGB : results/cache/charcnn/  (lgbm_seed_100.pkl, xgb_seed_100.pkl)
-  - CatBoost   : results/caxf_char_cnn_results/catboost_model_seed_100.pkl
-    (CatBoost was trained on string labels so a CatBoostIntAdapter wraps it)
+Experiment: Stacking Ensemble — CAXF Sentence Embeddings
+========================================================
+Stacked Generalisation with Out-of-Fold (OOF) Meta-Feature Generation.
 
 Run from src/ directory:
-    python experiments/run_wsv_caxf_charcnn.py
+    python experiments/run_stacking_caxf_sentence_embedding.py
 """
 
 import time
@@ -22,8 +17,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 _here = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, classification_report,
@@ -35,8 +33,8 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
-from src.caxf.caxf_extractor_charcnn import CAXFExtractor
-from src.ensemble.weighted_soft_voting import WeightedSoftVoting
+from src.caxf.caxf_extractor_sentence_embedding import CAXFExtractor
+from src.ensemble.stacking import StackingEnsemble
 from config import SEED
 
 # ===============================
@@ -44,30 +42,18 @@ from config import SEED
 # ===============================
 suffix = f"_seed_{SEED}"
 
-DATA_PATH = "data/processed/Final_XSS_4class_dataset.csv"
-if not os.path.exists(DATA_PATH):
-    DATA_PATH = os.path.join("..", DATA_PATH)
-
-CACHE_DIR = "results/cache/charcnn"
-OUTPUT_DIR = "results/caxf_char_cnn_results"
-if not os.path.exists("results") and os.path.exists("../results"):
-    CACHE_DIR = os.path.join("..", CACHE_DIR)
-    OUTPUT_DIR = os.path.join("..", OUTPUT_DIR)
+DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/sentence_embedding")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_sentence_embedding_results")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TXT_OUT = os.path.join(OUTPUT_DIR, f"wsv_results{suffix}.txt")
-PNG_OUT = os.path.join(OUTPUT_DIR, f"wsv_results{suffix}.png")
-
-# CatBoost was saved in the results dir (not cache), so we look there first
-CAT_RESULT_PATH = os.path.join(OUTPUT_DIR, f"catboost_model{suffix}.pkl")
-CAT_CACHE_PATH  = os.path.join(CACHE_DIR, f"cat{suffix}.pkl")
+TXT_OUT     = os.path.join(OUTPUT_DIR, f"stacking_results{suffix}.txt")
+PNG_OUT     = os.path.join(OUTPUT_DIR, f"stacking_results{suffix}.png")
+STACK_CACHE = os.path.join(CACHE_DIR, f"stacking_ensemble{suffix}.pkl")
 
 
 class CatBoostIntAdapter:
-    """Wraps a CatBoost model trained on raw string labels so predict()
-    and predict_proba() return integer-indexed outputs compatible with
-    our ensemble classes."""
     def __init__(self, model, label_encoder):
         self._model = model
         self._le = label_encoder
@@ -83,6 +69,15 @@ class CatBoostIntAdapter:
     def predict_proba(self, X):
         return self._model.predict_proba(X)
 
+    def fit(self, X, y):
+        flat_y = np.array(y).flatten()
+        try:
+            self._model.fit(X, flat_y)
+        except Exception:
+            str_labels = self._le.inverse_transform(flat_y)
+            self._model.fit(X, str_labels)
+        return self
+
 
 def main():
     log_lines = []
@@ -92,8 +87,9 @@ def main():
         log_lines.append(str(msg))
 
     log("=" * 60)
-    log("WSV ENSEMBLE PIPELINE — CAXF CHAR-CNN")
-    log("Weighted Soft Voting (macro-F1 weights from training set)")
+    log("STACKING ENSEMBLE PIPELINE — CAXF SENTENCE EMBEDDING")
+    log("Stacked Generalisation with OOF meta-feature generation")
+    log("Meta-learner: Logistic Regression (L2, multinomial)")
     log("=" * 60)
 
     # ---------------------------------------------------------------
@@ -120,17 +116,22 @@ def main():
     log()
 
     # ---------------------------------------------------------------
-    # Load cached CharCNN embeddings
+    # Load cached Sentence embeddings
     # ---------------------------------------------------------------
     cache_train_emb = f"{CACHE_DIR}/X_train_embed{suffix}.npy"
+    if not os.path.exists(cache_train_emb):
+        cache_train_emb = f"{CACHE_DIR}/X_train_embed.npy"
+
     cache_test_emb  = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
+    if not os.path.exists(cache_test_emb):
+        cache_test_emb  = f"{CACHE_DIR}/X_test_embed.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
-        log("[CACHE] Loading cached CharCNN embeddings...")
+        log("[CACHE] Loading cached Sentence embeddings...")
         X_train_embed = np.load(cache_train_emb).astype(np.float32)
         X_test_embed  = np.load(cache_test_emb).astype(np.float32)
     else:
-        log("Running CAXF CharCNN feature extraction...")
+        log("Running CAXF Sentence Embedding feature extraction...")
         t0 = time.time()
         caxf = CAXFExtractor()
         caxf.fit(X_train)
@@ -141,7 +142,7 @@ def main():
             X_test_embed  = X_test_embed.toarray()
         np.save(cache_train_emb, X_train_embed)
         np.save(cache_test_emb, X_test_embed)
-        log(f"Embeddings saved. Time: {round(time.time()-t0, 2)}s")
+        log(f"Saved. Time: {round(time.time()-t0, 2)}s")
         X_train_embed = X_train_embed.astype(np.float32)
         X_test_embed  = X_test_embed.astype(np.float32)
 
@@ -162,7 +163,7 @@ def main():
     y_train_orig = y_train
 
     # ---------------------------------------------------------------
-    # Load base models — same paths as run_lccde_caxf_charcnn.py
+    # Load base models
     # ---------------------------------------------------------------
     cache_lgbm = os.path.join(CACHE_DIR, f"lgbm{suffix}.pkl")
     if not os.path.exists(cache_lgbm):
@@ -183,7 +184,7 @@ def main():
         _cat_raw = joblib.load(cache_cat)
         cat      = CatBoostIntAdapter(_cat_raw, le)
     else:
-        log("Training base models (models not found in cache)...")
+        log("Training base models...")
         lgbm = LGBMClassifier(
             objective="multiclass", num_class=4, n_estimators=100,
             learning_rate=0.1, random_state=SEED, n_jobs=-1
@@ -215,33 +216,42 @@ def main():
         cat = CatBoostIntAdapter(_cat_raw, le)
 
     # ---------------------------------------------------------------
-    # WSV: compute macro-F1 weights from training set
+    # Stacking Meta-Feature Generation
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Computing WSV weights from training macro-F1...")
+    log("Stacking Ensemble — OOF Meta-Feature Generation")
     log("=" * 60)
 
-    models = [lgbm, xgb, cat]
-    model_names = ["LightGBM", "XGBoost", "CatBoost"]
-    wsv = WeightedSoftVoting(models)
-    wsv.fit(X_train_embed, y_train)
+    base_models = [("lgbm", lgbm), ("xgb", xgb), ("cat", cat)]
 
-    log("Per-model macro-F1 weights:")
-    for name, w in zip(model_names, wsv.weights):
-        log(f"  {name}: {w:.4f}")
-    log()
+    if os.path.exists(STACK_CACHE):
+        log(f"[CACHE] Loading cached stacking ensemble...")
+        stack = joblib.load(STACK_CACHE)
+    else:
+        log("Generating OOF meta-features (5-fold StratifiedKFold)...")
+        t0 = time.time()
+        stack = StackingEnsemble(
+            base_models=base_models,
+            n_folds=5,
+            random_state=SEED,
+            n_classes=4
+        )
+        stack.fit(X_train_embed, y_train)
+        log(f"OOF + meta-learner training time: {round(time.time()-t0, 2)}s")
+        joblib.dump(stack, STACK_CACHE)
+        log(f"Cached to: {STACK_CACHE}")
 
     # ---------------------------------------------------------------
-    # Evaluate
+    # Evaluate Stacking Ensemble
     # ---------------------------------------------------------------
     log("=" * 60)
-    log("Evaluating WSV Ensemble...")
+    log("Evaluating Stacking Ensemble...")
     log("=" * 60)
 
     t0 = time.time()
-    final_preds = wsv.predict(X_test_embed)
+    final_preds = stack.predict(X_test_embed)
     inf_time = round(time.time() - t0, 4)
-    log(f"WSV Inference time: {inf_time} seconds\n")
+    log(f"Stacking Inference time: {inf_time} seconds\n")
 
     y_test_labels = le.inverse_transform(y_test)
     pred_labels   = le.inverse_transform(final_preds.astype(int))
@@ -267,7 +277,7 @@ def main():
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
                 xticklabels=le.classes_, yticklabels=le.classes_)
-    plt.title("Confusion Matrix — WSV Ensemble (CAXF CharCNN)")
+    plt.title("Confusion Matrix — Stacking Ensemble (CAXF Sentence Embedding)")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
