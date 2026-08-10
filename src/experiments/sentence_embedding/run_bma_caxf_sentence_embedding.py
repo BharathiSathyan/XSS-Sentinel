@@ -44,7 +44,7 @@ suffix = f"_seed_{SEED}"
 
 DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
 CACHE_DIR = os.path.join(_proj_root, "results/cache/sentence_embedding")
-OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_sentence_embedding_results")
+OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_sentence_embedding_results/ensembles")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
