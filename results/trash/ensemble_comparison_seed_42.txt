@@ -1,0 +1,129 @@
+============================================================
+ENSEMBLE COMPARISON REPORT — CAXF TF-IDF (Seed 42)
+============================================================
+Feature Extractor : TF-IDF (5282-dim n-gram features)
+Base Models       : LightGBM + XGBoost + CatBoost
+Train/Test Split  : 70:30, seed=42, stratified
+Test Samples      : 3276
+Dataset           : Final_XSS_4class_dataset.csv (10917 samples)
+Classes           : DOM-based XSS (9), Normal (1079),
+                    Reflected XSS (2039), Stored XSS (149)
+============================================================
+
+
+------------------------------------------------------------
+SECTION 1: OVERALL RANKING & METRICS
+------------------------------------------------------------
+Rank  Algorithm           Accuracy   Precision  Recall     F1         Inf.Time
+                                     (Macro)    (Macro)    (Macro)
+------------------------------------------------------------
+1 🏆   Stacking            99.69%     93.97%     96.76%     95.30%     0.41 s
+2 🥈   CCDS (Novel)        99.66%     93.97%     96.59%     95.22%     2.97 s
+3 🥉   BMA (Tied)          99.66%     94.10%     96.44%     95.21%     0.81 s
+3 🥉   PCER (Tied)         99.66%     94.10%     96.44%     95.21%     0.31 s
+3 🥉   WSV (Tied)          99.63%     94.10%     96.44%     95.21%     0.45 s
+6     LCCDE (baseline)    99.60%     95.62%     93.98%     94.72%     0.21 s
+------------------------------------------------------------
+WSV  = Weighted Soft Voting
+BMA  = Bayesian Model Averaging
+PCER = Per-Class Expert Routing (custom novel)
+CCDS = Confidence-Calibrated Dynamic Selection (custom novel)
+Stacking = Stacked Generalisation (OOF, LogReg meta-learner)
+
+
+------------------------------------------------------------
+SECTION 2: PER-CLASS F1 SCORE
+------------------------------------------------------------
+Rank  Algorithm           DOM-based   Normal      Reflected   Stored
+                          XSS (9)     (1079)      XSS (2039)  XSS (149)
+------------------------------------------------------------
+1 🏆   Stacking            0.84        1.00 ✅     1.00 ✅     0.97 ✅
+2 🥈   CCDS (Novel)        0.84        1.00 ✅     1.00 ✅     0.97 ✅
+3     BMA                 0.84        1.00 ✅     1.00 ✅     0.97 ✅
+3     PCER (Novel)        0.84        1.00 ✅     1.00 ✅     0.97 ✅
+3     WSV                 0.84        1.00 ✅     1.00 ✅     0.97 ✅
+6     LCCDE (baseline)    0.82        1.00 ✅     1.00 ✅     0.97 ✅
+------------------------------------------------------------
+
+
+------------------------------------------------------------
+SECTION 3: PER-CLASS PRECISION / RECALL
+------------------------------------------------------------
+
+--- DOM-based XSS (support=9) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         0.80        0.89        0.84
+CCDS (Novel) 🥈     0.80        0.89        0.84
+BMA                 0.80        0.89        0.84
+PCER (Novel)        0.80        0.89        0.84
+WSV                 0.80        0.89        0.84
+LCCDE (baseline)    0.88        0.78        0.82
+
+--- Normal (support=1079) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         1.00        1.00        1.00
+CCDS (Novel)        1.00        1.00        1.00
+BMA                 1.00        1.00        1.00
+PCER (Novel)        1.00        1.00        1.00
+WSV                 1.00        1.00        1.00
+LCCDE (baseline)    1.00        1.00        1.00
+
+--- Reflected XSS (support=2039) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         1.00        1.00        1.00
+CCDS (Novel)        1.00        1.00        1.00
+BMA                 1.00        1.00        1.00
+PCER (Novel)        1.00        1.00        1.00
+WSV                 1.00        1.00        1.00
+LCCDE (baseline)    1.00        1.00        1.00
+
+--- Stored XSS (support=149) ---
+Algorithm           Precision   Recall      F1
+Stacking 🏆         0.96        0.99        0.97
+CCDS (Novel) 🥈     0.96        0.98        0.97
+BMA                 0.97        0.97        0.97
+PCER (Novel)        0.97        0.97        0.97
+WSV                 0.97        0.97        0.97
+LCCDE (baseline)    0.95        0.99        0.97
+
+
+------------------------------------------------------------
+SECTION 4: IMPROVEMENT OVER LCCDE BASELINE (BY RANK)
+------------------------------------------------------------
+Rank  Algorithm           ΔAccuracy   ΔMacro F1   ΔDOM F1
+------------------------------------------------------------
+1     Stacking 🏆         +0.09 pp    +0.58 pp    +0.02
+2     CCDS (Novel) 🥈     +0.06 pp    +0.50 pp    +0.02
+3     BMA (Tied)          +0.06 pp    +0.49 pp    +0.02
+3     PCER (Tied)         +0.06 pp    +0.49 pp    +0.02
+3     WSV (Tied)          +0.03 pp    +0.49 pp    +0.02
+------------------------------------------------------------
+pp = percentage points
+
+
+------------------------------------------------------------
+SECTION 5: RANKINGS & WINNER ANALYSIS
+------------------------------------------------------------
+
+🏆 RANK 1 — WINNER: Stacking (Stacked Generalisation)
+  Accuracy        : 99.69%  (highest accuracy across all experiments)
+  Macro F1        : 95.30%  (+0.58 pp over LCCDE)
+  Macro Recall    : 96.76%  (highest recall)
+  Inference Time  : 0.41 s
+  Why Rank 1      : Stacking maximizes recall on rare classes (89% on DOM-based XSS,
+                    99% on Stored XSS) via 5-fold OOF logistic regression meta-features.
+
+🥈 RANK 2 — RUNNER-UP: CCDS (Confidence-Calibrated Dynamic Selection)
+  Accuracy        : 99.66%
+  Macro F1        : 95.22%  (+0.50 pp over LCCDE)
+  Inference Time  : 2.97 s
+  Why Rank 2      : Continuous JSD disagreement routing handles high-dimensional
+                    TF-IDF feature spaces exceptionally well without meta-learner training.
+
+🥉 RANK 3 (TIED) — BMA, PCER, WSV
+  Accuracy        : 99.66%
+  Macro F1        : 95.21%  (+0.49 pp over LCCDE)
+
+============================================================
+END OF REPORT
+============================================================

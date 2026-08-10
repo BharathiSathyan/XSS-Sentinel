@@ -19,13 +19,10 @@ Train size: 7641
 Test size : 3276
 Overlap Size: 0
 
-============================================================
-Running CAXF Feature Extraction (Sentence Embedding)...
-============================================================
-Saved embeddings checkpoint.
+[CACHE] Loading cached Sentence embeddings...
 Embedding shape (train): (7641, 666)
 Embedding shape (test) : (3276, 666)
-CAXF time: 202.01 seconds
+CAXF time: 0.0 seconds
 
 ============================================================
 Applying SMOTE...
@@ -43,15 +40,13 @@ After SMOTE:
 3    4756
 0    4756
 Name: count, dtype: int64
-SMOTE time: 5.88 seconds
+SMOTE time: 2.64 seconds
 
-Training LightGBM...
-Training XGBoost...
-Training CatBoost...
+[CACHE] Loading trained base models...
 ============================================================
 Evaluating LCCDE Ensemble...
 ============================================================
-LCCDE Inference time: 0.2149 seconds
+LCCDE Inference time: 0.2264 seconds
 
 Accuracy: 0.9957
 
