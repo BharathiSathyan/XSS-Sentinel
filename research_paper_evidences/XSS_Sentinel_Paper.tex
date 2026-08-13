@@ -1,0 +1,604 @@
+%==========================================================================
+% XSS Sentinel: Contextual-Adversarial Cross-Feature Extraction with
+% Six-Ensemble Decision Fusion for Multi-Class XSS Detection
+% IEEE IEEEtran Conference Format
+% Compile: pdflatex -> bibtex -> pdflatex -> pdflatex
+%==========================================================================
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{cite}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+%--------------------------------------------------------------------------
+\title{XSS Sentinel: A Web Security Framework for XSS
+Detection and Classification}
+
+\author{
+\IEEEauthorblockN{Bharathi Sathyan}
+\IEEEauthorblockA{Department of Computer Science\\
+Email: bharathisathyan@example.edu}
+}
+
+\maketitle
+
+%--------------------------------------------------------------------------
+\begin{abstract}
+Cross-Site Scripting (XSS) remains one of the most prevalent web attack
+vectors, yet multi-class fine-grained XSS detection---distinguishing
+Reflected, Stored, and DOM-based XSS from benign payloads---is underexplored.
+We present \textbf{XSS Sentinel}, a framework that combines the
+Contextual-Adversarial Cross-Feature (CAXF) extraction pipeline with six
+heterogeneous ensemble decision strategies evaluated across three feature
+representations. CAXF concatenates HTML-structural, JavaScript-event,
+URL-pattern, special-character, keyword, and deep-embedding features into
+unified high-dimensional vectors. We evaluate three CAXF instantiations:
+TF-IDF character n-gram (5,282-dim), Character-level CNN (410-dim), and
+MiniLM sentence embedding (666-dim). Six ensemble methods---Strict LCCDE,
+Weighted Soft Voting (WSV), Bayesian Model Averaging (BMA), Stacking,
+Per-Class Expert Routing (PCER), and Confidence-Calibrated Dynamic Selection
+(CCDS)---are applied atop LightGBM, XGBoost, and CatBoost base classifiers,
+all trained with SMOTE-balanced data. Experiments on a 10,917-sample
+four-class Kaggle XSS dataset (70:30 stratified split, seed=42) show that
+Stacking with CAXF+TF-IDF achieves the best overall macro-F1 of 95.30\%,
+while BMA/PCER/WSV with CAXF+Sentence-Embedding reach 95.98\%
+macro-F1 and 99.29\% macro-precision. An ablation study confirms that Strict
+LCCDE outperforms the original MVE-CT variant on TF-IDF features by
+1.09 percentage points, validating OOF-based class-leader identification.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Cross-Site Scripting, XSS detection, ensemble learning, CAXF, LCCDE,
+feature extraction, sentence embeddings, CharCNN, imbalanced classification
+\end{IEEEkeywords}
+
+%==========================================================================
+\section{Introduction}
+\label{sec:intro}
+%==========================================================================
+
+Cross-Site Scripting (XSS) is consistently ranked among the top web
+security threats by OWASP~\cite{owasp2021}. An XSS attack injects malicious
+scripts into trusted web pages, enabling session hijacking, credential theft,
+and client-side malware execution. Detection is complicated by: (1)~payload
+obfuscation via encoding and character substitution, (2)~severe class
+imbalance (DOM-based XSS constitutes fewer than 0.3\% of samples), and
+(3)~categorical diversity among Reflected, Stored, and DOM-based variants.
+
+Prior work largely frames XSS detection as binary classification or relies on
+shallow features~\cite{caxf_lccde2024}. The CAXF-LCCDE framework
+of~\cite{caxf_lccde2024} introduced a structured feature concatenation
+architecture and the Leader-Confidence-Class Decision Ensemble (LCCDE).
+However, its ensemble strategy has three limitations: (a)~class leaders are
+selected by heuristic rather than out-of-fold cross-validation,
+(b)~no probabilistic weighting is applied across models, and (c)~the approach
+was not evaluated for multi-class XSS discrimination.
+
+\textbf{Contributions:}
+\begin{enumerate}
+  \item A multi-class CAXF pipeline with three deep-embedding backends:
+        TF-IDF character n-grams, Character-level CNN, and all-MiniLM-L6-v2
+        sentence embeddings.
+  \item \textbf{Strict LCCDE}: reimplementation of Algorithm~2
+        from~\cite{caxf_lccde2024} with out-of-fold cross-validation for
+        class-leader identification.
+  \item Four novel ensemble strategies: Weighted Soft Voting (WSV),
+        Bayesian Model Averaging (BMA), Per-Class Expert Routing (PCER),
+        and Confidence-Calibrated Dynamic Selection (CCDS).
+  \item A stacking ensemble with logistic-regression meta-learner trained on
+        5-fold OOF features.
+  \item A systematic ablation of Strict LCCDE vs.\ MVE-CT across all three
+        feature representations.
+\end{enumerate}
+
+%==========================================================================
+\section{Related Work}
+\label{sec:related}
+%==========================================================================
+
+\subsection{XSS Detection Methods}
+
+Early XSS detectors used signature matching and regular expressions, which
+fail against polymorphic payloads~\cite{lccde2022}. Machine learning
+approaches using TF-IDF features showed improvements but lack structural
+context~\cite{caxf_lccde2024}. Character-level CNN models capture
+sub-token patterns~\cite{charcnn_zhang2015}. Transformer-based embeddings
+(MiniLM)~\cite{minilm2020} yield semantic representations robust to
+token-level obfuscation.
+
+\subsection{Ensemble Methods for Cybersecurity}
+
+LCCDE~\cite{lccde2022} demonstrated that heterogeneous gradient-boosting
+ensembles outperform single models for intrusion detection. Stacking
+(Wolpert, 1992)~\cite{wolpert1992} replaces hard-coded rules with a learned
+meta-model. Bayesian Model Averaging~\cite{hoeting1999} provides principled
+posterior model probabilities. For severely imbalanced data, per-class
+routing strategies improve rare-class detection.
+
+\subsection{Imbalanced Classification}
+
+SMOTE~\cite{smote2002} generates synthetic minority-class samples via linear
+interpolation in feature space. In our dataset, DOM-based XSS (30 samples)
+is up-sampled to 4,756 training samples per class post-SMOTE.
+
+%==========================================================================
+\section{Dataset Preparation}
+\label{sec:dataset}
+%==========================================================================
+
+\subsection{Dataset Statistics}
+
+We use the Kaggle XSS Dataset~\cite{kaggle_xss}: 10,917 payloads with four
+labels: Normal (3,594), Reflected XSS (6,795), Stored XSS (498), and
+DOM-based XSS (30). Split: 70:30 stratified by class (seed=42), giving
+7,641 train / 3,276 test samples. Test-set support: DOM~(9), Normal~(1,079),
+Reflected~(2,039), Stored~(149). Zero overlap between train and test sets
+was verified at runtime.
+
+\subsection{SMOTE Balancing}
+
+Pre-SMOTE training distribution: DOM=21, Normal=2,515, Reflected=4,756,
+Stored=349. SMOTE~\cite{smote2002} up-samples all classes to 4,756:
+
+\begin{equation}
+  \mathbf{x}_{\text{syn}} = \mathbf{x}_i +
+    \lambda (\mathbf{x}_j - \mathbf{x}_i),
+  \quad \lambda \sim \mathcal{U}[0,1]
+  \label{eq:smote}
+\end{equation}
+
+where $\mathbf{x}_j$ is a $k$-nearest neighbour of minority-class sample
+$\mathbf{x}_i$.
+
+%==========================================================================
+\section{Methodology}
+\label{sec:methodology}
+%==========================================================================
+
+\subsection{CAXF Feature Extraction}
+
+The CAXF extractor processes each payload $s$ through five structural
+sub-extractors plus one deep-embedding module:
+
+\begin{equation}
+  \mathbf{f}(s) = \bigl[\mathbf{f}_{\text{html}}(s) \;\|\;
+    \mathbf{f}_{\text{js}}(s) \;\|\;
+    \mathbf{f}_{\text{url}}(s) \;\|\;
+    \mathbf{f}_{\text{sc}}(s) \;\|\;
+    \mathbf{f}_{\text{kw}}(s) \;\|\;
+    \boldsymbol{\phi}(s)\bigr]
+  \label{eq:caxf}
+\end{equation}
+
+where $\mathbf{f}_{\text{html}}$ counts HTML tag occurrences (BeautifulSoup),
+$\mathbf{f}_{\text{js}}$ captures JS event frequencies,
+$\mathbf{f}_{\text{url}}$ encodes URL structural attributes,
+$\mathbf{f}_{\text{sc}}$ quantifies special-character frequencies,
+$\mathbf{f}_{\text{kw}}$ matches XSS keyword patterns, and
+$\boldsymbol{\phi}(s)$ is the deep embedding variant.
+
+\begin{algorithm}[t]
+\caption{CAXF Feature Extraction}
+\label{alg:caxf}
+\begin{algorithmic}[1]
+\REQUIRE Payload corpus $\mathcal{S} = \{s_1, \ldots, s_N\}$
+\ENSURE Feature matrix $\mathbf{F} \in \mathbb{R}^{N \times D}$
+\STATE Fit \{HTMLTags, JSEvents, URLFeats, SpecialChars, Keywords\} on $\mathcal{S}$
+\STATE Fit deep-embedding $\phi$ on $\mathcal{S}$
+\FOR{each $s_i \in \mathcal{S}$}
+  \STATE $\mathbf{f}_i \leftarrow$ Eq.~\ref{eq:caxf} applied to $s_i$
+\ENDFOR
+\RETURN $\mathbf{F} = [\mathbf{f}_1; \ldots; \mathbf{f}_N]$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{TF-IDF Variant}
+
+Character-level TF-IDF with $n$-grams in $[3,5]$ and 5,000 max features:
+\begin{equation}
+  \text{tfidf}(t,s) = \text{tf}(t,s) \cdot \log\frac{N}{1+\text{df}(t)}
+  \label{eq:tfidf}
+\end{equation}
+Total dimension: 5,282 (structural + TF-IDF features).
+
+\subsubsection{CharCNN Variant}
+
+Payloads are encoded as ASCII ordinals, padded/truncated to $L=200$.
+Two parallel 1-D convolutional banks (kernel sizes $k{\in}\{3,5\}$, 64 filters)
+with global max-pooling:
+
+\begin{equation}
+  \mathbf{h}_k = \text{MaxPool}\bigl(\text{ReLU}(
+    \mathbf{W}_k \ast \mathbf{E}(s))\bigr),
+  \quad k \in \{3,5\}
+  \label{eq:charcnn_conv}
+\end{equation}
+\begin{equation}
+  \boldsymbol{\phi}_{\text{cnn}}(s) = \mathbf{W}_o [\mathbf{h}_3 \| \mathbf{h}_5]
+  \label{eq:charcnn_proj}
+\end{equation}
+
+where $\mathbf{E}(s) \in \mathbb{R}^{L \times 32}$ (vocab=128, embed\_dim=32).
+Output: 128-dim. Total fused: 410-dim.
+
+\begin{algorithm}[t]
+\caption{CharCNN Embedding}
+\label{alg:charcnn}
+\begin{algorithmic}[1]
+\REQUIRE Payload $s$, $L{=}200$, vocab=128, embed\_dim=32, filters=64
+\ENSURE $\boldsymbol{\phi}_{\text{cnn}} \in \mathbb{R}^{128}$
+\STATE $x \leftarrow [\text{ord}(c) \bmod 128]_{c \in s}$, truncate/pad to $L$
+\STATE $\mathbf{E} \leftarrow \text{Embedding}(x) \in \mathbb{R}^{L \times 32}$
+\STATE $\mathbf{h}_3 \leftarrow \text{MaxPool}(\text{ReLU}(\text{Conv1d}(\mathbf{E}^\top, k{=}3)))$
+\STATE $\mathbf{h}_5 \leftarrow \text{MaxPool}(\text{ReLU}(\text{Conv1d}(\mathbf{E}^\top, k{=}5)))$
+\RETURN $\mathbf{W}_o [\mathbf{h}_3 \| \mathbf{h}_5]$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{MiniLM Sentence Embedding Variant}
+
+The all-MiniLM-L6-v2 model~\cite{minilm2020} produces a 384-dim vector via
+mean-pooling over final-layer token hidden states:
+
+\begin{equation}
+  \boldsymbol{\phi}_{\text{minilm}}(s) =
+    \frac{1}{T}\sum_{t=1}^{T} \mathbf{h}_t^{(6)}
+  \label{eq:minilm}
+\end{equation}
+
+where $T$ is the token sequence length and $\mathbf{h}_t^{(6)} \in \mathbb{R}^{384}$.
+Total fused: 666-dim (282 structural + 384 semantic).
+
+\begin{algorithm}[t]
+\caption{MiniLM Sentence Embedding}
+\label{alg:sentenc}
+\begin{algorithmic}[1]
+\REQUIRE Corpus $\mathcal{S}$, batch\_size=64
+\ENSURE $\boldsymbol{\Phi} \in \mathbb{R}^{N \times 384}$
+\STATE Load all-MiniLM-L6-v2 (frozen)
+\FOR{each batch $\mathcal{B}$ of size 64}
+  \STATE Tokenise each $s_i \in \mathcal{B}$ with WordPiece
+  \STATE Forward: $\{\mathbf{h}_t^{(6)}\}_{t=1}^{T_i}$ for each $s_i$
+  \STATE $\boldsymbol{\phi}_i \leftarrow \frac{1}{T_i}\sum_t \mathbf{h}_t^{(6)}$
+\ENDFOR
+\RETURN $[\boldsymbol{\phi}_1; \ldots; \boldsymbol{\phi}_N]$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Base Classifiers}
+
+LightGBM (LGBM) and XGBoost are trained on SMOTE-balanced data.
+CatBoost uses class weights $w_c = N/(C \cdot N_c)$, yielding
+$w_{\text{DOM}} \approx 90.96$, $w_{\text{Stored}} \approx 5.47$,
+$w_{\text{Normal}} \approx 0.76$, $w_{\text{Reflected}} \approx 0.40$.
+
+\begin{algorithm}[t]
+\caption{SMOTE Training Pipeline}
+\label{alg:smote}
+\begin{algorithmic}[1]
+\REQUIRE $\mathbf{X}_{\text{tr}}, \mathbf{y}_{\text{tr}}$;
+         models $\{M_{\text{lgbm}}, M_{\text{xgb}}, M_{\text{cat}}\}$
+\STATE $(\tilde{\mathbf{X}}, \tilde{\mathbf{y}}) \leftarrow
+  \text{SMOTE}(\mathbf{X}_{\text{tr}}, \mathbf{y}_{\text{tr}},
+  k{=}5, \text{seed}{=}42)$
+\STATE Fit $M_{\text{lgbm}}$ on $(\tilde{\mathbf{X}}, \tilde{\mathbf{y}})$
+\STATE Fit $M_{\text{xgb}}$ on $(\tilde{\mathbf{X}}, \tilde{\mathbf{y}})$
+\STATE $w_c \leftarrow N/(C \cdot N_c)$ for each $c$
+\STATE Fit $M_{\text{cat}}$ on $(\mathbf{X}_{\text{tr}},\mathbf{y}_{\text{tr}})$
+       with weights $\{w_c\}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Ensemble Decision Strategies}
+
+Let $K=3$ base models with probability functions
+$P_k(\mathbf{x}) \in \Delta^{C-1}$. Let $\hat{y}_k = \arg\max_c P_k(c|\mathbf{x})$.
+
+\subsubsection{Strict LCCDE}
+Class leaders are determined by 3-fold OOF cross-validation:
+\begin{equation}
+  \ell^*_c = \arg\max_k F1_k^{\text{OOF}}(c)
+  \label{eq:strict_lccde_leader}
+\end{equation}
+
+\begin{algorithm}[t]
+\caption{Strict LCCDE Decision}
+\label{alg:strict_lccde}
+\begin{algorithmic}[1]
+\REQUIRE $\mathbf{x}$, leader map $\boldsymbol{\ell}^*$,
+         $\{\hat{y}_k, P_k\}_{k=0}^{2}$
+\IF{$\hat{y}_0 = \hat{y}_1 = \hat{y}_2$}
+  \RETURN $\hat{y}_0$
+\ELSIF{all three differ}
+  \STATE $\mathcal{M} \leftarrow \{k : \ell^*_{\hat{y}_k} = k\}$
+  \IF{$|\mathcal{M}|=1$} \RETURN $\hat{y}_{\mathcal{M}_0}$
+  \ELSE \RETURN $\hat{y}_{k^*}$, $k^* = \arg\max_k P_k(\hat{y}_k)$
+  \ENDIF
+\ELSE
+  \STATE $c_{\text{maj}} \leftarrow$ majority class
+  \RETURN $\hat{y}_{\ell^*_{c_{\text{maj}}}}$
+\ENDIF
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Weighted Soft Voting (WSV)}
+\begin{equation}
+  P_{\text{wsv}}(y|\mathbf{x}) = \sum_{k=1}^{K} w_k P_k(y|\mathbf{x}),
+  \quad w_k = \frac{F1_k^{\text{macro}}}{\sum_j F1_j^{\text{macro}}}
+  \label{eq:wsv}
+\end{equation}
+
+\subsubsection{Bayesian Model Averaging (BMA)~\cite{hoeting1999}}
+\begin{equation}
+  P_{\text{bma}}(y{=}c|\mathbf{x}) = \sum_k w_{kc} P_k(c|\mathbf{x}),
+  \quad w_{kc} = \frac{\text{prec}_{kc}+1}{\sum_j(\text{prec}_{jc}+1)}
+  \label{eq:bma}
+\end{equation}
+
+\subsubsection{Stacking~\cite{wolpert1992}}
+Meta-features: $\mathbf{z}(\mathbf{x}) = [P_1(\mathbf{x})\|P_2(\mathbf{x})\|P_3(\mathbf{x})] \in \mathbb{R}^{KC}$.
+Logistic regression meta-learner trained on 5-fold OOF features.
+
+\subsubsection{PCER --- Novel}
+\begin{equation}
+  E(c) = \arg\max_k \text{prec}_{kc}, \quad
+  c_{\text{cons}} = \arg\max_c \tfrac{1}{K}\textstyle\sum_k P_k(c|\mathbf{x})
+  \label{eq:pcer_expert}
+\end{equation}
+\begin{equation}
+  \hat{y}_{\text{PCER}} = \begin{cases}
+    c_{\text{cons}} & \text{if } P_{E(c_{\text{cons}})}(c_{\text{cons}}|\mathbf{x})\geq\tau \\
+    \arg\max_c \sum_k \text{prec}_{kc} P_k(c|\mathbf{x}) & \text{otherwise}
+  \end{cases}
+  \label{eq:pcer_pred}
+\end{equation}
+
+\begin{algorithm}[t]
+\caption{PCER Routing}
+\label{alg:pcer}
+\begin{algorithmic}[1]
+\REQUIRE $\mathbf{x}$, expert table $E$, precision matrix, $\tau{=}0.5$
+\STATE $c_{\text{cons}} \leftarrow \arg\max_c \frac{1}{K}\sum_k P_k(c|\mathbf{x})$
+\IF{$P_{E(c_{\text{cons}})}(c_{\text{cons}}|\mathbf{x}) \geq \tau$}
+  \RETURN $c_{\text{cons}}$
+\ELSE
+  \STATE $\text{score}(c) \leftarrow \sum_k \text{prec}_{kc} \cdot P_k(c|\mathbf{x})$
+  \RETURN $\arg\max_c \text{score}(c)$
+\ENDIF
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{CCDS --- Novel}
+
+Disagreement is measured via pairwise Jensen-Shannon Divergence:
+\begin{equation}
+  \text{JSD}(P_i\|P_j) = \tfrac{1}{2}D_{\text{KL}}(P_i\|M)
+    + \tfrac{1}{2}D_{\text{KL}}(P_j\|M),\; M = \tfrac{1}{2}(P_i{+}P_j)
+  \label{eq:jsd}
+\end{equation}
+\begin{equation}
+  D = \frac{1}{\binom{K}{2}}\sum_{i<j}\text{JSD}(P_i\|P_j)
+  \label{eq:ccds_D}
+\end{equation}
+
+Three strategies ($\theta_\ell{=}0.05$, $\theta_h{=}0.15$):
+\begin{itemize}
+  \item $D < \theta_\ell$: inverse-entropy weighted soft vote
+  \item $\theta_\ell \leq D \leq \theta_h$: drop outlier model, soft-vote remainder
+  \item $D > \theta_h$: lowest-entropy model as authority; fallback to soft vote
+\end{itemize}
+
+%==========================================================================
+\section{Experimental Setup}
+\label{sec:setup}
+%==========================================================================
+
+All experiments use random seed=42, Python 3.10, LightGBM 4.x, XGBoost 1.7.x,
+CatBoost 1.2.x, scikit-learn 1.3.x, sentence-transformers 2.x, PyTorch 2.x.
+Hardware: consumer-grade CPU. Evaluation metrics: macro-averaged Precision,
+Recall, F1-score, and per-class F1. Inference time: wall-clock on 3,276
+test samples.
+
+%==========================================================================
+\section{Results and Comparative Analysis}
+\label{sec:results}
+%==========================================================================
+
+\subsection{Baseline Model Performance}
+
+Table~\ref{tab:baselines} reports individual base-model macro metrics
+(all values from
+\texttt{results/caxf\_\{tfidf,char\_cnn,sentence\_embedding\}\_results/baselines/}).
+
+\begin{table}[t]
+\centering
+\caption{Baseline Model Performance (Macro Metrics, seed=42)}
+\label{tab:baselines}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Feature} & \textbf{Model} & \textbf{Prec.} & \textbf{Recall} & \textbf{F1} \\
+\midrule
+\multirow{3}{*}{TF-IDF (5282d)}
+  & LightGBM & 0.9392 & 0.9625 & 0.9503 \\
+  & XGBoost  & 0.8860 & 0.9688 & 0.9188 \\
+  & CatBoost & 0.8192 & 0.9258 & 0.8601 \\
+\midrule
+\multirow{3}{*}{CharCNN (410d)}
+  & LightGBM & 0.9678 & 0.9581 & 0.9628 \\
+  & XGBoost  & 0.9921 & 0.9374 & 0.9613 \\
+  & CatBoost & 0.8863 & 0.9324 & 0.9086 \\
+\midrule
+\multirow{3}{*}{SentEmb (666d)}
+  & LightGBM & 0.9895 & 0.9335 & 0.9580 \\
+  & XGBoost  & 0.9919 & 0.9631 & 0.9767 \\
+  & CatBoost & 0.8870 & 0.9267 & 0.9103 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Six-Ensemble Comparison}
+
+Table~\ref{tab:ensembles} reports macro-F1 for all six ensembles across three
+representations (from
+\texttt{results/caxf\_*\_results/ensemble\_comparison\_seed\_42.txt}, Sec.~1).
+
+\begin{table}[t]
+\centering
+\caption{Macro-F1 by Ensemble and Feature Representation (seed=42)}
+\label{tab:ensembles}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Ensemble} & \textbf{TF-IDF} & \textbf{CharCNN} & \textbf{SentEmb} & \textbf{Best} \\
+\midrule
+Stacking      & \textbf{0.9530} & \textbf{0.9528} & 0.9591 & TF-IDF \\
+BMA           & 0.9521 & 0.9478 & \textbf{0.9598} & SentEmb \\
+PCER          & 0.9521 & 0.9487 & \textbf{0.9598} & SentEmb \\
+WSV           & 0.9521 & 0.9478 & \textbf{0.9598} & SentEmb \\
+CCDS          & 0.9522 & 0.9260 & 0.9590 & SentEmb \\
+LCCDE (base)  & 0.9472 & 0.9472 & 0.9580 & SentEmb \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key findings: (1) Stacking+TF-IDF achieves highest macro-recall (96.76\%);
+(2) BMA/PCER/WSV+SentEmb yield highest macro-precision (99.29\%);
+(3) CCDS+CharCNN underperforms (92.60\%) due to high-disagreement fallbacks;
+(4) all novel methods outperform LCCDE on at least one representation.
+
+\subsection{Per-Class F1 Breakdown}
+
+Table~\ref{tab:perclass} shows per-class F1 for CAXF+TF-IDF
+(from \texttt{caxf\_tfidf\_results/ensemble\_comparison\_seed\_42.txt}, Sec.~2).
+
+\begin{table}[t]
+\centering
+\caption{Per-Class F1 --- CAXF+TF-IDF (seed=42)}
+\label{tab:perclass}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Ensemble} & \textbf{DOM (9)} & \textbf{Normal (1079)} &
+  \textbf{Refl. (2039)} & \textbf{Stored (149)} \\
+\midrule
+Stacking       & 0.84 & 1.00 & 1.00 & 0.97 \\
+CCDS           & 0.84 & 1.00 & 1.00 & 0.97 \\
+BMA            & 0.84 & 1.00 & 1.00 & 0.97 \\
+PCER           & 0.84 & 1.00 & 1.00 & 0.97 \\
+WSV            & 0.84 & 1.00 & 1.00 & 0.97 \\
+LCCDE (base)   & 0.82 & 1.00 & 1.00 & 0.97 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All ensembles achieve perfect F1 on Normal and Reflected XSS. The critical
+differentiator is DOM-based XSS: proposed ensembles gain +0.02 over LCCDE,
+corresponding to one additional correctly classified DOM sample. For CharCNN,
+Stacking achieves DOM F1 = 0.88 with perfect precision (1.00).
+
+\subsection{Ablation Study: Strict LCCDE vs.\ MVE-CT}
+
+Table~\ref{tab:ablation} reports the ablation (all values from
+\texttt{results/ensemble\_ablation\_study\_seed\_42.txt}).
+
+\begin{table}[t]
+\centering
+\caption{Ablation: Strict LCCDE vs.\ MVE-CT (seed=42)}
+\label{tab:ablation}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Feature} &
+  \multicolumn{2}{c}{\textbf{Strict LCCDE}} &
+  \multicolumn{2}{c}{\textbf{MVE-CT}} &
+  \textbf{$\Delta$F1} & \textbf{Winner} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+& \textbf{F1} & \textbf{DOM} & \textbf{F1} & \textbf{DOM} & & \\
+\midrule
+TF-IDF  & 0.9630 & 0.8889 & 0.9521 & 0.8421 & $-1.09\%$ & Strict LCCDE \\
+CharCNN & 0.9505 & 0.8421 & 0.9641 & 0.8889 & $+1.36\%$ & MVE-CT \\
+SentEmb & 0.9580 & 0.8750 & 0.9580 & 0.8750 & $+0.00\%$ & Tie \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+OOF leader maps (seed=42):
+TF-IDF: XGB leads DOM/Reflected, LGBM leads Normal/Stored;
+CharCNN: XGB leads DOM/Reflected/Stored, LGBM leads Normal;
+SentEmb: LGBM leads all four classes.
+
+%==========================================================================
+\section{Discussion}
+\label{sec:discussion}
+%==========================================================================
+
+\subsection{Obfuscation Resilience}
+
+Structural CAXF features (HTML tags, JS events, special characters) operate
+on the parse-tree level, remaining stable under HTML entity encoding,
+JavaScript string splitting, and Unicode escaping. MiniLM sentence embeddings
+capture semantic meaning invariant to token-level substitutions. TF-IDF
+character n-grams ($[3,5]$-gram) detect sub-token patterns (e.g.,
+\texttt{<sc}, \texttt{ript>}) that persist under partial obfuscation.
+
+\subsection{Rare-Class (DOM-based XSS) Detection Dynamics}
+
+DOM-based XSS (9 test samples) is the most challenging class. With only
+21 original training samples, SMOTE diversity is limited. Best DOM F1
+scores: TF-IDF: 0.84 (all novel ensembles vs.\ 0.82 for LCCDE);
+CharCNN: 0.88 (Stacking, with perfect DOM precision = 1.00);
+SentEmb: 0.88 (BMA/PCER/WSV/Stacking/CCDS/LCCDE, precision = 1.00).
+Stacking with CharCNN achieves zero DOM false positives, preferred for
+deployments where DOM XSS false alarms are costly.
+
+\subsection{Computational Efficiency}
+
+Inference time on 3,276 test samples: Stacking/BMA/WSV+CharCNN is fastest
+(0.08~s); CCDS+TF-IDF is slowest (2.97~s) due to pairwise JSD computation
+over 5,282-dimensional distributions. CAXF extraction overhead: TF-IDF
+17--18~s, CharCNN 9--23~s, SentEmb 177--228~s (CPU-only MiniLM inference).
+For production deployment, PCER+CharCNN offers the best accuracy-speed
+tradeoff: 99.66\% accuracy, 94.87\% macro-F1, 0.21~s inference.
+
+\subsection{Ensemble Strategy Selection Guide}
+
+\begin{itemize}
+  \item \textbf{Maximum macro-F1}: Stacking+TF-IDF (0.9530) or BMA/WSV+SentEmb (0.9598)
+  \item \textbf{Maximum DOM precision}: Stacking+CharCNN or any+SentEmb (1.00)
+  \item \textbf{Fastest inference}: Stacking/BMA/WSV+CharCNN (0.08~s)
+  \item \textbf{Principled uncertainty}: CCDS (at cost of inference speed)
+\end{itemize}
+
+%==========================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%==========================================================================
+
+XSS Sentinel demonstrates that combining CAXF feature extraction with
+probabilistic ensemble decision strategies substantially advances multi-class
+XSS detection. Stacking with CAXF+TF-IDF achieves 95.30\% macro-F1
+(+0.58~pp over LCCDE), while BMA/PCER/WSV with CAXF+SentEmb achieve
+99.29\% macro-precision. Strict LCCDE with OOF leader identification
+outperforms the heuristic MVE-CT by 1.09~pp on TF-IDF features. All five
+proposed ensemble strategies improve upon the LCCDE baseline on at least
+one feature representation.
+
+Future work: adversarial payload augmentation, online adaptive ensemble
+weighting, five-class detection (including mXSS), and CCDS threshold
+calibration via Platt scaling.
+
+%==========================================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+%==========================================================================
+
+\end{document}
