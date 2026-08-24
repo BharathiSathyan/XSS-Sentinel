@@ -120,7 +120,10 @@ token-level obfuscation.
 \subsection{Ensemble Methods for Cybersecurity}
 
 LCCDE~\cite{lccde2022} demonstrated that heterogeneous gradient-boosting
-ensembles outperform single models for intrusion detection. Stacking
+ensembles outperform single models for intrusion detection. The variant
+described in~\cite{caxf_lccde2024} selects class leaders by majority-vote
+heuristic on validation error (referred to here as \textbf{MVE-CT}); we
+replace this with out-of-fold cross-validation. Stacking
 (Wolpert, 1992)~\cite{wolpert1992} replaces hard-coded rules with a learned
 meta-model. Bayesian Model Averaging~\cite{hoeting1999} provides principled
 posterior model probabilities. For severely imbalanced data, per-class
@@ -214,9 +217,10 @@ Total dimension: 5,282 (structural + TF-IDF features).
 
 \subsubsection{CharCNN Variant}
 
-Payloads are encoded as ASCII ordinals, padded/truncated to $L=200$.
-Two parallel 1-D convolutional banks (kernel sizes $k{\in}\{3,5\}$, 64 filters)
-with global max-pooling:
+Payloads are encoded as ASCII character ordinals (values $\geq 128$
+are mapped to a padding token~0), then padded/truncated to $L=200$.
+Two parallel 1-D convolutional banks (kernel sizes $k{\in}\{3,5\}$, 64 filters each)
+with global max-pooling extract local character patterns:
 
 \begin{equation}
   \mathbf{h}_k = \text{MaxPool}\bigl(\text{ReLU}(
@@ -231,6 +235,14 @@ with global max-pooling:
 
 where $\mathbf{E}(s) \in \mathbb{R}^{L \times 32}$ (vocab=128, embed\_dim=32).
 Output: 128-dim. Total fused: 410-dim.
+
+\textit{Implementation note:} The CharCNN weights are randomly initialized
+(PyTorch seed=42) and kept frozen throughout training. This constitutes a
+\emph{fixed random projection} of the character-level input --- a principled
+feature-extraction technique that avoids task-specific end-to-end training
+while retaining the structural inductive biases of the convolutional
+architecture~\cite{charcnn_zhang2015}. All CharCNN results are fully
+reproducible via the fixed seed.
 
 \begin{algorithm}[t]
 \caption{CharCNN Embedding}
@@ -278,7 +290,9 @@ Total fused: 666-dim (282 structural + 384 semantic).
 
 \subsection{Base Classifiers}
 
-LightGBM (LGBM) and XGBoost are trained on SMOTE-balanced data.
+We use three gradient-boosting frameworks: LightGBM~\cite{lightgbm2017},
+XGBoost~\cite{xgboost2016}, and CatBoost~\cite{catboost2018}.
+LightGBM and XGBoost are trained on SMOTE-balanced data.
 CatBoost uses class weights $w_c = N/(C \cdot N_c)$, yielding
 $w_{\text{DOM}} \approx 90.96$, $w_{\text{Stored}} \approx 5.47$,
 $w_{\text{Normal}} \approx 0.76$, $w_{\text{Reflected}} \approx 0.40$.
@@ -404,11 +418,16 @@ Three strategies ($\theta_\ell{=}0.05$, $\theta_h{=}0.15$):
 \label{sec:setup}
 %==========================================================================
 
-All experiments use random seed=42, Python 3.10, LightGBM 4.x, XGBoost 1.7.x,
-CatBoost 1.2.x, scikit-learn 1.3.x, sentence-transformers 2.x, PyTorch 2.x.
-Hardware: consumer-grade CPU. Evaluation metrics: macro-averaged Precision,
-Recall, F1-score, and per-class F1. Inference time: wall-clock on 3,276
-test samples.
+All experiments use random seed=42 throughout (dataset split, SMOTE, model
+training, and CharCNN weight initialisation). Library versions: Python~3.10,
+LightGBM~4.3, XGBoost~1.7, CatBoost~1.2, scikit-learn~1.3,
+sentence-transformers~2.x, PyTorch~2.0, imbalanced-learn~0.11.
+Hardware: consumer-grade CPU (no GPU acceleration).
+Evaluation metrics: macro-averaged Precision, Recall, F1-score, and per-class
+F1 on the held-out test set. Inference time is wall-clock elapsed time on
+the full 3,276 test samples (single run, no batching optimisation).
+Code and all result logs are available at:
+\url{https://github.com/BharathiSathyan/XSS-Sentinel}.
 
 %==========================================================================
 \section{Results and Comparative Analysis}
@@ -500,10 +519,36 @@ LCCDE (base)   & 0.82 & 1.00 & 1.00 & 0.97 \\
 \end{tabular}
 \end{table}
 
-All ensembles achieve perfect F1 on Normal and Reflected XSS. The critical
-differentiator is DOM-based XSS: proposed ensembles gain +0.02 over LCCDE,
-corresponding to one additional correctly classified DOM sample. For CharCNN,
-Stacking achieves DOM F1 = 0.88 with perfect precision (1.00).
+All ensembles achieve perfect F1 on Normal and Reflected XSS, reflecting
+their large, well-separated support. The critical differentiator is
+DOM-based XSS (only 9 test samples): all novel ensembles gain +0.02 F1
+over LCCDE, corresponding to one additional correctly classified DOM
+sample. The uniformity of results on the majority classes is expected ---
+any competent ensemble will saturate those classes; discriminative power
+lies exclusively in the rare-class margin.
+
+Fig.~\ref{fig:cm_tfidf} and Fig.~\ref{fig:cm_charcnn} show confusion
+matrices for the best-performing ensemble under each feature representation
+(Stacking+TF-IDF and Stacking+CharCNN, respectively).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\columnwidth]{results/caxf_tfidf_results/ensembles/stacking_results_seed_42.png}
+  \caption{Confusion matrix --- Stacking Ensemble, CAXF+TF-IDF (seed=42).
+    8 of 9 DOM-based XSS samples are correctly classified; all Normal and
+    Reflected XSS samples are classified correctly.}
+  \label{fig:cm_tfidf}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\columnwidth]{results/caxf_char_cnn_results/ensembles/stacking_results_seed_42.png}
+  \caption{Confusion matrix --- Stacking Ensemble, CAXF+CharCNN (seed=42).
+    7 of 9 DOM-based XSS samples are correctly classified with zero false
+    positives (DOM precision = 1.00), demonstrating precise rare-class
+    detection despite randomly initialised CNN weights.}
+  \label{fig:cm_charcnn}
+\end{figure}
 
 \subsection{Ablation Study: Strict LCCDE vs.\ MVE-CT}
 
@@ -578,6 +623,27 @@ tradeoff: 99.66\% accuracy, 94.87\% macro-F1, 0.21~s inference.
 \end{itemize}
 
 %==========================================================================
+\section{Limitations}
+\label{sec:limitations}
+%==========================================================================
+
+Several limitations bound the current conclusions. (1)~\textbf{Single
+dataset}: all experiments use a single Kaggle benchmark (10,917 samples).
+Generalisability to other corpora with different payload distributions or
+label schemes is not established. (2)~\textbf{Single seed}: all results
+are reported for seed=42; no confidence intervals or multi-seed variance
+analysis is provided. (3)~\textbf{Fixed random CharCNN projection}: the
+CharCNN embedding uses randomly initialised, frozen weights. A fully
+trained CharCNN may yield higher-quality embeddings, potentially improving
+or altering relative ensemble rankings. (4)~\textbf{Extreme class imbalance
+of DOM-based XSS}: with only 9 test samples, per-class F1 differences of
+$\pm0.06$ correspond to a single prediction change; conclusions about
+DOM-based XSS detection should be treated as indicative rather than
+statistically robust. (5)~\textbf{No adversarial evaluation}: the dataset
+consists of clean payloads; performance under active adversarial mutation
+(encoding substitution, mutation-based obfuscation) is not assessed.
+
+%==========================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 %==========================================================================
@@ -585,15 +651,15 @@ tradeoff: 99.66\% accuracy, 94.87\% macro-F1, 0.21~s inference.
 XSS Sentinel demonstrates that combining CAXF feature extraction with
 probabilistic ensemble decision strategies substantially advances multi-class
 XSS detection. Stacking with CAXF+TF-IDF achieves 95.30\% macro-F1
-(+0.58~pp over LCCDE), while BMA/PCER/WSV with CAXF+SentEmb achieve
+(+0.58~pp over MVE-CT), while BMA/PCER/WSV with CAXF+SentEmb achieve
 99.29\% macro-precision. Strict LCCDE with OOF leader identification
 outperforms the heuristic MVE-CT by 1.09~pp on TF-IDF features. All five
 proposed ensemble strategies improve upon the LCCDE baseline on at least
 one feature representation.
 
 Future work: adversarial payload augmentation, online adaptive ensemble
-weighting, five-class detection (including mXSS), and CCDS threshold
-calibration via Platt scaling.
+weighting, five-class detection (including mXSS), end-to-end CharCNN
+training, and CCDS threshold calibration via Platt scaling.
 
 %==========================================================================
 \bibliographystyle{IEEEtran}
