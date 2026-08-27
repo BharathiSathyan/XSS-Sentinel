@@ -21,8 +21,8 @@ Rank  Algorithm           Accuracy   Precision  Recall     F1         Inf.Time
 2 🥈   PCER (Novel)        99.66%     96.35%     93.55%     94.87%     0.21 s
 3 🥉   BMA (Tied)          99.63%     96.18%     93.53%     94.78%     0.08 s
 3 🥉   WSV (Tied)          99.63%     96.18%     93.53%     94.78%     0.08 s
-5     LCCDE (baseline)    99.60%     95.62%     93.98%     94.72%     0.21 s
-6     CCDS (Novel)        99.57%     91.67%     93.64%     92.60%     1.78 s
+5      LCCDE(baseline)     99.60%     95.62%     93.98%     94.72%     0.21 s
+6      CCDS (Novel)        99.57%     91.67%     93.64%     92.60%     1.78 s
 ------------------------------------------------------------
 WSV  = Weighted Soft Voting
 BMA  = Bayesian Model Averaging

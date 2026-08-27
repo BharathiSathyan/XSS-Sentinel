@@ -16,6 +16,7 @@
 \usepackage{multirow}
 \usepackage{url}
 \usepackage{cite}
+\usepackage[caption=false,font=footnotesize]{subfig}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -437,8 +438,7 @@ Code and all result logs are available at:
 \subsection{Baseline Model Performance}
 
 Table~\ref{tab:baselines} reports individual base-model macro metrics
-(all values from
-\texttt{results/caxf\_\{tfidf,char\_cnn,sentence\_embedding\}\_results/baselines/}).
+across the three feature extraction strategies.
 
 \begin{table}[t]
 \centering
@@ -469,8 +469,7 @@ Table~\ref{tab:baselines} reports individual base-model macro metrics
 \subsection{Six-Ensemble Comparison}
 
 Table~\ref{tab:ensembles} reports macro-F1 for all six ensembles across three
-representations (from
-\texttt{results/caxf\_*\_results/ensemble\_comparison\_seed\_42.txt}, Sec.~1).
+representations evaluated on the 3,276 test samples.
 
 \begin{table}[t]
 \centering
@@ -497,8 +496,7 @@ Key findings: (1) Stacking+TF-IDF achieves highest macro-recall (96.76\%);
 
 \subsection{Per-Class F1 Breakdown}
 
-Table~\ref{tab:perclass} shows per-class F1 for CAXF+TF-IDF
-(from \texttt{caxf\_tfidf\_results/ensemble\_comparison\_seed\_42.txt}, Sec.~2).
+Table~\ref{tab:perclass} shows per-class F1 for CAXF+TF-IDF feature representation.
 
 \begin{table}[t]
 \centering
@@ -527,33 +525,29 @@ sample. The uniformity of results on the majority classes is expected ---
 any competent ensemble will saturate those classes; discriminative power
 lies exclusively in the rare-class margin.
 
-Fig.~\ref{fig:cm_tfidf} and Fig.~\ref{fig:cm_charcnn} show confusion
-matrices for the best-performing ensemble under each feature representation
-(Stacking+TF-IDF and Stacking+CharCNN, respectively).
+Fig.~\ref{fig:cm_all} displays the confusion matrices for the top-performing ensemble model under each feature representation.
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
-  \includegraphics[width=0.95\columnwidth]{results/caxf_tfidf_results/ensembles/stacking_results_seed_42.png}
-  \caption{Confusion matrix --- Stacking Ensemble, CAXF+TF-IDF (seed=42).
-    8 of 9 DOM-based XSS samples are correctly classified; all Normal and
-    Reflected XSS samples are classified correctly.}
-  \label{fig:cm_tfidf}
-\end{figure}
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.95\columnwidth]{results/caxf_char_cnn_results/ensembles/stacking_results_seed_42.png}
-  \caption{Confusion matrix --- Stacking Ensemble, CAXF+CharCNN (seed=42).
-    7 of 9 DOM-based XSS samples are correctly classified with zero false
-    positives (DOM precision = 1.00), demonstrating precise rare-class
-    detection despite randomly initialised CNN weights.}
-  \label{fig:cm_charcnn}
-\end{figure}
+  \subfloat[CAXF+TF-IDF (Stacking)]{%
+    \includegraphics[width=0.32\textwidth]{results/caxf_tfidf_results/ensembles/stacking_results_seed_42.png}%
+    \label{fig:cm_tfidf}%
+  }\hfill
+  \subfloat[CAXF+CharCNN (Stacking)]{%
+    \includegraphics[width=0.32\textwidth]{results/caxf_char_cnn_results/ensembles/stacking_results_seed_42.png}%
+    \label{fig:cm_charcnn}%
+  }\hfill
+  \subfloat[CAXF+SentEmb (BMA)]{%
+    \includegraphics[width=0.32\textwidth]{results/caxf_sentence_embedding_results/ensembles/bma_results_seed_42.png}%
+    \label{fig:cm_sentemb}%
+  }
+  \caption{Confusion matrices for top-performing ensemble model across feature representations (seed=42). (a) Stacking with CAXF+TF-IDF (8 of 9 DOM-based XSS samples correctly classified); (b) Stacking with CAXF+CharCNN (7 of 9 DOM-based XSS samples correctly classified, zero false positives); (c) BMA with CAXF+Sentence Embedding (7 of 9 DOM-based XSS samples correctly classified, 99.29\% macro precision).}
+  \label{fig:cm_all}
+\end{figure*}
 
 \subsection{Ablation Study: Strict LCCDE vs.\ MVE-CT}
 
-Table~\ref{tab:ablation} reports the ablation (all values from
-\texttt{results/ensemble\_ablation\_study\_seed\_42.txt}).
+Table~\ref{tab:ablation} reports the ablation study comparing Strict LCCDE against the MVE-CT strategy.
 
 \begin{table}[t]
 \centering
