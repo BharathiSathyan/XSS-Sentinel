@@ -17,6 +17,12 @@
 \usepackage{url}
 \usepackage{cite}
 \usepackage[caption=false,font=footnotesize]{subfig}
+\usepackage{stfloats}
+\usepackage{placeins}
+\usepackage{balance}
+\usepackage{microtype}
+\usepackage[shortcuts]{extdash}
+\usepackage{flushend}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -30,11 +36,9 @@ Detection and Classification}
 \author{
 \IEEEauthorblockN{Bharathi Sathyan, Mirudhulabashini N}
 % \IEEEauthorblockA{Department of Computer Science
-}}
+}
 
-\maketitle
-
-%--------------------------------------------------------------------------
+\IEEEtitleabstractindextext{%
 \begin{abstract}
 Cross-Site Scripting (XSS) remains one of the most prevalent web attack
 vectors, yet multi-class fine-grained XSS detection---distinguishing
@@ -63,6 +67,10 @@ LCCDE outperforms the original MVE-CT variant on TF-IDF features by
 Cross-Site Scripting, XSS detection, ensemble learning, CAXF, LCCDE,
 feature extraction, sentence embeddings, CharCNN, imbalanced classification
 \end{IEEEkeywords}
+}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
 
 %==========================================================================
 \section{Introduction}
@@ -525,25 +533,37 @@ sample. The uniformity of results on the majority classes is expected ---
 any competent ensemble will saturate those classes; discriminative power
 lies exclusively in the rare-class margin.
 
-Fig.~\ref{fig:cm_all} displays the confusion matrices for the top-performing ensemble model under each feature representation.
+Fig.~\ref{fig:figures/cm_tfidf}, Fig.~\ref{fig:figures/cm_charcnn}, and Fig.~\ref{fig:figures/cm_sentemb} show confusion
+matrices for the top-performing ensemble under each feature representation
+(Stacking+TF-IDF, Stacking+CharCNN, and BMA+Sentence-Embedding, respectively).
 
-\begin{figure*}[t]
+\begin{figure}[t]
   \centering
-  \subfloat[CAXF+TF-IDF (Stacking)]{%
-    \includegraphics[width=0.32\textwidth]{results/caxf_tfidf_results/ensembles/stacking_results_seed_42.png}%
-    \label{fig:cm_tfidf}%
-  }\hfill
-  \subfloat[CAXF+CharCNN (Stacking)]{%
-    \includegraphics[width=0.32\textwidth]{results/caxf_char_cnn_results/ensembles/stacking_results_seed_42.png}%
-    \label{fig:cm_charcnn}%
-  }\hfill
-  \subfloat[CAXF+SentEmb (BMA)]{%
-    \includegraphics[width=0.32\textwidth]{results/caxf_sentence_embedding_results/ensembles/bma_results_seed_42.png}%
-    \label{fig:cm_sentemb}%
-  }
-  \caption{Confusion matrices for top-performing ensemble model across feature representations (seed=42). (a) Stacking with CAXF+TF-IDF (8 of 9 DOM-based XSS samples correctly classified); (b) Stacking with CAXF+CharCNN (7 of 9 DOM-based XSS samples correctly classified, zero false positives); (c) BMA with CAXF+Sentence Embedding (7 of 9 DOM-based XSS samples correctly classified, 99.29\% macro precision).}
-  \label{fig:cm_all}
-\end{figure*}
+  \includegraphics[width=0.95\columnwidth]{figures/cm_tfidf.png}
+  \caption{Confusion matrix --- Stacking Ensemble, CAXF+TF-IDF (seed=42).
+    8 of 9 DOM-based XSS samples are correctly classified; all Normal and
+    Reflected XSS samples are classified correctly.}
+  \label{fig:figures/cm_tfidf}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\columnwidth]{figures/cm_charcnn.png}
+  \caption{Confusion matrix --- Stacking Ensemble, CAXF+CharCNN (seed=42).
+    7 of 9 DOM-based XSS samples are correctly classified with zero false
+    positives (DOM precision = 1.00), demonstrating precise rare-class
+    detection despite randomly initialised CNN weights.}
+  \label{fig:figures/cm_charcnn}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\columnwidth]{figures/cm_sentemb.png}
+  \caption{Confusion matrix --- BMA Ensemble, CAXF+Sentence Embedding (seed=42).
+    Achieves 99.29\% macro precision with 7 of 9 DOM-based XSS samples correctly classified
+    and zero false positives on DOM attacks.}
+  \label{fig:figures/cm_sentemb}
+\end{figure}
 
 \subsection{Ablation Study: Strict LCCDE vs.\ MVE-CT}
 
@@ -621,23 +641,34 @@ tradeoff: 99.66\% accuracy, 94.87\% macro-F1, 0.21~s inference.
 \label{sec:limitations}
 %==========================================================================
 
-Several limitations bound the current conclusions. (1)~\textbf{Single
+Several limitations bound the current conclusions. 
+
+(1)~\textbf{Single
 dataset}: all experiments use a single Kaggle benchmark (10,917 samples).
 Generalisability to other corpora with different payload distributions or
-label schemes is not established. (2)~\textbf{Single seed}: all results
+label schemes is not established. 
+
+(2)~\textbf{Single seed}: all results
 are reported for seed=42; no confidence intervals or multi-seed variance
-analysis is provided. (3)~\textbf{Fixed random CharCNN projection}: the
+analysis is provided. 
+
+(3)~\textbf{Fixed random CharCNN projection}: the
 CharCNN embedding uses randomly initialised, frozen weights. A fully
 trained CharCNN may yield higher-quality embeddings, potentially improving
-or altering relative ensemble rankings. (4)~\textbf{Extreme class imbalance
+or altering relative ensemble rankings. 
+
+(4)~\textbf{Extreme class imbalance
 of DOM-based XSS}: with only 9 test samples, per-class F1 differences of
 $\pm0.06$ correspond to a single prediction change; conclusions about
 DOM-based XSS detection should be treated as indicative rather than
-statistically robust. (5)~\textbf{No adversarial evaluation}: the dataset
+statistically robust. 
+
+(5)~\textbf{No adversarial evaluation}: the dataset
 consists of clean payloads; performance under active adversarial mutation
 (encoding substitution, mutation-based obfuscation) is not assessed.
 
 %==========================================================================
+\balance
 \section{Conclusion}
 \label{sec:conclusion}
 %==========================================================================
