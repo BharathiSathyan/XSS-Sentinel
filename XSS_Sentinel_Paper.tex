@@ -40,27 +40,32 @@ Detection and Classification}
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Cross-Site Scripting (XSS) remains one of the most prevalent web attack
-vectors, yet multi-class fine-grained XSS detection---distinguishing
-Reflected, Stored, and DOM-based XSS from benign payloads---is underexplored.
-We present \textbf{XSS Sentinel}, a framework that combines the
-Contextual-Adversarial Cross-Feature (CAXF) extraction pipeline with six
-heterogeneous ensemble decision strategies evaluated across three feature
-representations. CAXF concatenates HTML-structural, JavaScript-event,
-URL-pattern, special-character, keyword, and deep-embedding features into
-unified high-dimensional vectors. We evaluate three CAXF instantiations:
-TF-IDF character n-gram (5,282-dim), Character-level CNN (410-dim), and
-MiniLM sentence embedding (666-dim). Six ensemble methods---Strict LCCDE,
-Weighted Soft Voting (WSV), Bayesian Model Averaging (BMA), Stacking,
-Per-Class Expert Routing (PCER), and Confidence-Calibrated Dynamic Selection
-(CCDS)---are applied atop LightGBM, XGBoost, and CatBoost base classifiers,
-all trained with SMOTE-balanced data. Experiments on a 10,917-sample
-four-class Kaggle XSS dataset (70:30 stratified split, seed=42) show that
-Stacking with CAXF+TF-IDF achieves the best overall macro-F1 of 95.30\%,
-while BMA/PCER/WSV with CAXF+Sentence-Embedding reach 95.98\%
-macro-F1 and 99.29\% macro-precision. An ablation study confirms that Strict
-LCCDE outperforms the original MVE-CT variant on TF-IDF features by
-1.09 percentage points, validating OOF-based class-leader identification.
+Cross-Site Scripting (XSS) attacks inject malicious scripts into trusted
+web pages, enabling session hijacking, credential theft, and malware
+execution on unsuspecting users. While binary XSS detection has received
+considerable attention, fine-grained four-class discrimination among
+Reflected, Stored, DOM-based, and benign payloads remains a largely
+unsolved challenge---particularly given severe class imbalance and
+payload obfuscation. We present \textbf{XSS Sentinel}, a framework that
+addresses this gap through two complementary contributions: a
+Contextual-Adversarial Cross-Feature (CAXF) extraction pipeline and six
+heterogeneous ensemble decision strategies. CAXF fuses five structural
+analysers (HTML tags, JavaScript events, URL patterns, special characters,
+and XSS keywords) with a deep-embedding module, producing vectors in three
+instantiations---TF-IDF character n-gram (5,282-dim), Character-level CNN
+(410-dim), and MiniLM sentence embedding (666-dim). Six ensemble methods
+---Strict LCCDE, Weighted Soft Voting (WSV), Bayesian Model Averaging
+(BMA), Stacking, Per-Class Expert Routing (PCER), and
+Confidence-Calibrated Dynamic Selection (CCDS)---are evaluated on top of
+LightGBM, XGBoost, and CatBoost base classifiers trained on SMOTE-balanced
+data. On a 10,917-sample four-class Kaggle XSS dataset (70:30 stratified
+split, seed=42), Stacking with CAXF+TF-IDF achieves the highest overall
+macro-F1 of 95.30\%, while BMA, PCER, and WSV paired with
+CAXF+Sentence-Embedding reach 95.98\% macro-F1 and 99.29\%
+macro-precision. An ablation study further confirms that Strict LCCDE,
+which uses out-of-fold cross-validation to identify class leaders,
+outperforms the heuristic MVE-CT variant by 1.09 percentage points on
+TF-IDF features.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -157,6 +162,36 @@ DOM-based XSS (30). Split: 70:30 stratified by class (seed=42), giving
 7,641 train / 3,276 test samples. Test-set support: DOM~(9), Normal~(1,079),
 Reflected~(2,039), Stored~(149). Zero overlap between train and test sets
 was verified at runtime.
+
+\subsection{LLM-Assisted Label Refinement}
+
+The raw Kaggle dataset provides only binary annotations: Label~0 for normal
+payloads and Label~1 for all XSS payloads, with no fine-grained sub-type
+distinction. To generate the four-class labels required for our experiments,
+we applied a zero-shot classification pipeline using
+\textbf{FLAN-T5-base}~\cite{flan_t5_2022}, an instruction-tuned sequence-to-sequence
+language model. Normal samples (Label~=~0) were assigned the ``Normal''
+category directly without model inference. For each XSS sample (Label~=~1),
+we constructed a structured natural-language prompt that presented the raw
+payload along with category definitions and classification rules for the
+three XSS sub-types:
+
+\begin{itemize}
+  \item \emph{DOM-based XSS}: payloads operating on JavaScript DOM objects
+        such as \texttt{document.location}, \texttt{window.location}, or
+        \texttt{innerHTML}.
+  \item \emph{Stored XSS}: payloads containing persistent HTML or script
+        injection tags (e.g., \texttt{<script>}, \texttt{<iframe>}).
+  \item \emph{Reflected XSS}: payloads exploiting event handlers or
+        URL-encoded characters (e.g., \texttt{on\ldots=}, \texttt{\%3c}).
+\end{itemize}
+
+The model was queried with inputs truncated to 512~tokens and constrained to
+produce a single category name (\texttt{max\_new\_tokens=10}). The pipeline
+supports checkpoint-based resumption, saving progress every 100 rows to
+guard against interruptions during batch processing. The resulting
+four-class dataset (Normal~3,594; Reflected~6,795; Stored~498;
+DOM-based~30) forms the foundation for all subsequent experiments.
 
 \subsection{SMOTE Balancing}
 
