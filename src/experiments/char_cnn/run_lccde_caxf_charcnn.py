@@ -9,8 +9,11 @@ import seaborn as sns
 
 # Ensure both project root (for src.caxf.*) and src/ (for config) are in sys.path
 _here = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))  # project root
-sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))    # src/
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -33,7 +36,7 @@ from config import SEED
 suffix = f"_seed_{SEED}"
 
 DATA_PATH = os.path.join(_proj_root, "data/processed/Final_XSS_4class_dataset.csv")
-CACHE_DIR = os.path.join(_proj_root, "results/cache/char_cnn")
+CACHE_DIR = os.path.join(_proj_root, "results/cache/charcnn")
 OUTPUT_DIR = os.path.join(_proj_root, "results/caxf_char_cnn_results/ensembles")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -104,6 +107,11 @@ def main():
     # ===============================
     cache_train_emb = f"{CACHE_DIR}/X_train_embed{suffix}.npy"
     cache_test_emb = f"{CACHE_DIR}/X_test_embed{suffix}.npy"
+    # Fallback: check seedless cache filenames (produced by earlier scripts)
+    if not os.path.exists(cache_train_emb):
+        cache_train_emb = f"{CACHE_DIR}/X_train_embed.npy"
+    if not os.path.exists(cache_test_emb):
+        cache_test_emb = f"{CACHE_DIR}/X_test_embed.npy"
 
     if os.path.exists(cache_train_emb) and os.path.exists(cache_test_emb):
         log("[CACHE] Loading cached CharCNN embeddings...")
