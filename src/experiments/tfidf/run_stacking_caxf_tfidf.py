@@ -23,10 +23,31 @@ _here = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "../..")))  # project root
 sys.path.insert(0, os.path.abspath(os.path.join(_here, "..")))     # src/
 
+_here = os.path.abspath(os.path.dirname(__file__))
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
+
 from sklearn.model_selection import train_test_split
+_here = os.path.abspath(os.path.dirname(__file__))
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
+
 from sklearn.metrics import (accuracy_score, classification_report,
                              confusion_matrix, precision_score,
                              recall_score, f1_score)
+_here = os.path.abspath(os.path.dirname(__file__))
+_proj_root = os.path.abspath(os.path.join(_here, "../../.."))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+if os.path.join(_proj_root, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(_proj_root, "src"))
+
 from sklearn.preprocessing import LabelEncoder
 from imblearn.over_sampling import SMOTE
 from lightgbm import LGBMClassifier

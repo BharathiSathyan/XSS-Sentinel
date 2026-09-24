@@ -205,11 +205,12 @@ $\boldsymbol{\phi}(s)$ is the deep embedding variant.
 
 \subsubsection{TF-IDF Variant}
 
-Character-level TF-IDF with $n$-grams in $[3,5]$ and 5,000 max features:
+Character-level TF-IDF with $n$-grams in $[3,5]$ and 5,000 max features uses smoothed inverse document frequency following standard scikit-learn defaults:
 \begin{equation}
-  \text{tfidf}(t,s) = \text{tf}(t,s) \cdot \log\frac{N}{1+\text{df}(t)}
+  \text{tfidf}(t,s) = \text{tf}(t,s) \cdot \left[ \log\left( \frac{1+N}{1+\text{df}(t)} \right) + 1 \right]
   \label{eq:tfidf}
 \end{equation}
+where $\text{tf}(t,s)$ is the term frequency of character $n$-gram $t$ in payload $s$, $\text{df}(t)$ is the document frequency of $t$, and $N$ is the total number of training payloads. The resulting feature vectors are $L_2$-normalized using the vectorizer's default norm.
 Total dimension: 5,282 (structural + TF-IDF features).
 
 \subsubsection{CharCNN Variant}
