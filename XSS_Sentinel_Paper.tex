@@ -341,26 +341,20 @@ XSS for 498 (4.6\%), and DOM-based XSS for just 30 samples (0.3\%). Stratified s
 ratio with seed=42 yields 7,641 training samples and 3,276 test samples, preserving the class
 proportions in both subsets. The test-set support per class is: DOM-based XSS (9), Normal (1,079),
 Reflected XSS (2,039), and Stored XSS (149). Zero overlap between training and test partitions is
-verified programmatically at the start of every experiment run. Table~\ref{tab:dataset} presents
-the complete class-wise split statistics.
+verified programmatically at the start of every experiment run. Figure~\ref{fig:dataset} presents
+the complete class-wise split statistics alongside the post-SMOTE balanced training distribution.
 
-\begin{table}[ht]
+\begin{figure}[ht]
 \centering
-\caption{Dataset class distribution: full corpus and stratified 70:30 split (seed=42)}
-\label{tab:dataset}
-\begin{tabular}{lrrrr}
-\toprule
-\textbf{Class} & \textbf{Total} & \textbf{Train (70\%)} & \textbf{Test (30\%)} & \textbf{\% Total} \\
-\midrule
-Reflected XSS  & 6,795 & 4,756 & 2,039 & 62.2\% \\
-Normal         & 3,594 & 2,515 & 1,079 & 32.9\% \\
-Stored XSS     &   498 &   349 &   149 &  4.6\% \\
-DOM-based XSS  &    30 &    21 &     9 &  0.3\% \\
-\midrule
-\textbf{Total} & \textbf{10,917} & \textbf{7,641} & \textbf{3,276} & 100\% \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=\textwidth]{figures/class_distribution_smote.png}
+\caption{Dataset class distribution and SMOTE balancing. \textbf{(a)}~Original distribution
+         for the full 10,917-sample corpus (log scale) and the 70:30 stratified train split
+         (seed=42), revealing a severe imbalance ratio of~$\approx$226.5 with only 21 DOM-based
+         XSS training samples. \textbf{(b)}~After SMOTE oversampling, all four classes are
+         equalised to 4,756 samples each (19,024 total), used for LightGBM and XGBoost training;
+         CatBoost uses class weights on the original 7,641 training samples.}
+\label{fig:dataset}
+\end{figure}
 
 %--------------------------------------------------------------------------
 \subsection{Preprocessing}
@@ -674,7 +668,7 @@ are also reported.
 
 \textbf{Baseline Model Performance.}
 Table~\ref{tab:baselines} reports individual base-classifier performance across all three feature
-representations (evidence: \texttt{results/caxf\_\{tfidf,char\_cnn,sentence\_embedding\}\_results/baselines/}).
+representations.
 Across all nine baseline configurations, sentence embedding-based XGBoost achieves the highest
 individual macro-F1 of 97.67\%, followed by CharCNN-based LightGBM at 96.28\%, while CatBoost
 consistently lags, particularly on TF-IDF features (macro-F1 86.01\%), due to the relative
@@ -853,8 +847,8 @@ correctly (78\% recall) but with zero false positives (precision=1.00).
   \label{fig:cm_bma_sentemb}
 \end{subfigure}
 \caption{Confusion matrices for the two best-performing models (seed=42, test $n{=}3{,}276$).
-         Left: Stacking+TF-IDF achieves the best overall macro-F1 with the highest recall on
-         DOM-based XSS (89\%). Right: BMA+SentEmb achieves the highest macro-precision (99.29\%)
+         \textbf{(a)}~Stacking+TF-IDF achieves the best overall macro-F1 with the highest recall on
+         DOM-based XSS (89\%). \textbf{(b)}~BMA+SentEmb achieves the highest macro-precision (99.29\%)
          with perfect DOM precision (1.00). Classes: D=DOM-based XSS (9), N=Normal (1,079),
          R=Reflected XSS (2,039), S=Stored XSS (149).}
 \label{fig:cm_best}
