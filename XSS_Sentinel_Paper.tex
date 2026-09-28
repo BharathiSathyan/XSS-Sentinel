@@ -830,11 +830,11 @@ SentEmb & 0.9580 & 0.8750 & 0.9580 & 0.8750 & $+0.00\%$  & Tie \\
 
 \textbf{Confusion Matrices for the Best Models.}
 Figure~\ref{fig:cm_best} presents the confusion matrices for the two top-performing configurations:
-Stacking with CAXF+TF-IDF (best overall macro-F1: 95.30\%, accuracy: 99.69\%) and BMA with
-CAXF+Sentence Embedding (best macro-precision: 99.29\%, macro-F1: 95.98\%). Both matrices confirm
+Stacking with CAXF+TF-IDF (Figure~\ref{fig:cm_stacking_tfidf}, best overall macro-F1: 95.30\%, accuracy: 99.69\%) and BMA with
+CAXF+Sentence Embedding (Figure~\ref{fig:cm_bma_sentemb}, best macro-precision: 99.29\%, macro-F1: 95.98\%). Both matrices confirm
 that Normal and Reflected XSS are classified perfectly, while DOM-based XSS---with only 9 test
-samples---is the primary source of residual error. Stacking+TF-IDF correctly classifies 8 of 9
-DOM samples (89\% recall) with 1 false positive, while BMA+SentEmb classifies 7 of 9 DOM samples
+samples---is the primary source of residual error. Stacking+TF-IDF (Figure~\ref{fig:cm_stacking_tfidf}) correctly classifies 8 of 9
+DOM samples (89\% recall) with 1 false positive, while BMA+SentEmb (Figure~\ref{fig:cm_bma_sentemb}) classifies 7 of 9 DOM samples
 correctly (78\% recall) but with zero false positives (precision=1.00).
 
 \begin{figure}[ht]
@@ -859,6 +859,7 @@ correctly (78\% recall) but with zero false positives (precision=1.00).
          R=Reflected XSS (2,039), S=Stored XSS (149).}
 \label{fig:cm_best}
 \end{figure}
+
 
 \subsubsection{Findings / Discussions (Inference)}
 
