@@ -142,7 +142,123 @@ Fourth, it contributes a Stacking ensemble with a logistic-regression meta-learn
 OOF features. Fifth, it provides a systematic ablation comparing Strict LCCDE vs.\ MVE-CT across all
 three feature representations.
 
-The remainder of this paper is organised as follows. Section~\ref{sec:prelim} establishes the theoretical background, covering XSS attack taxonomy, feature representation strategies for web payloads, gradient-boosting classifiers, and class-imbalance mitigation via SMOTE. Section~\ref{sec:related} surveys related work in XSS detection, ensemble learning for cybersecurity, and imbalanced classification. Section~\ref{sec:problem} formally states the problem, specifying the inputs, constraints, and objectives. Section~\ref{sec:proposed} presents the proposed XSS Sentinel framework in full, describing data collection, preprocessing, model construction, and the complete experimental evaluation---including setup, quantitative results, findings, and the pipeline architecture diagram. Section~\ref{sec:conclusion} summarises the conclusions, discusses the pros and limitations of the approach, and Section~\ref{sec:future} outlines directions for future work.
+The remainder of this paper is organised as follows. Section~\ref{sec:prelim} establishes the theoretical background, covering XSS attack taxonomy, feature representation strategies for web payloads, gradient-boosting classifiers, and class-imbalance mitigation via SMOTE. Section~\ref{sec:related} surveys related work in XSS detection, ensemble learning for cybersecurity, and imbalanced classification. Section~\ref{sec:problem} formally states the problem, specifying the inputs, constraints, and objectives. Section~\ref{sec:proposed} presents the proposed XSS Sentinel framework in full, describing data collection, preprocessing, model construction, and the complete experimental evaluation. Section~\ref{sec:conclusion} summarises the conclusions, discusses the pros and limitations of the approach, and Section~\ref{sec:future} outlines directions for future work. Figure~\ref{fig:pipeline} provides a high-level overview of the end-to-end architecture.
+
+%--------------------------------------------------------------------------
+% PIPELINE OVERVIEW --- placed here so readers see the full architecture
+% before the detailed sections that describe each component.
+%--------------------------------------------------------------------------
+
+\begin{figure}[!ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    %--- styles ---
+    stageheader/.style = {
+        rectangle, fill=gray!22, draw=gray!55,
+        minimum width=3.2cm, minimum height=7mm,
+        align=center, font=\small\bfseries
+    },
+    box/.style = {
+        rectangle, rounded corners=3pt,
+        draw=black!55, fill=blue!8,
+        minimum width=3.2cm, minimum height=9mm,
+        align=center, font=\small
+    },
+    ebox/.style = {
+        rectangle, rounded corners=3pt,
+        draw=black!55, fill=orange!18,
+        minimum width=3.2cm, minimum height=9mm,
+        align=center, font=\small
+    },
+    wbox/.style = {
+        rectangle, rounded corners=3pt,
+        draw=black!55, fill=green!14,
+        minimum width=3.2cm, minimum height=9mm,
+        align=center, font=\small
+    },
+    arr/.style  = {-{Latex[length=2.5mm]}, thick, black!60}
+  ]
+
+  % ---- Row offsets (column headers placed first, content below) ----
+  % Each column header is placed relative to the previous one.
+
+  % COL 1 — Input
+  \node[stageheader]                           (h1)  {Input};
+  \node[box,  below=5mm of h1]                 (inp) {Raw XSS Payload\\(Text String)};
+
+  % COL 2 — CAXF Extraction
+  \node[stageheader, right=20mm of h1]         (h2)  {CAXF Extraction};
+  \node[box,  below=5mm  of h2]                (str) {Structural\\Sub-Extractors\\(HTML/JS/URL/SC/KW)};
+  \node[box,  below=4mm  of str]               (tfi) {TF-IDF Char\\N-Gram};
+  \node[box,  below=4mm  of tfi]               (cnn) {CharCNN\\Embedding};
+  \node[box,  below=4mm  of cnn]               (mini){MiniLM\\SentEmb};
+
+  % COL 3 — CAXF Vectors
+  \node[stageheader, right=20mm of h2]         (h3)  {CAXF Vectors};
+  \node[box,  below=5mm  of h3]                (c1)  {CAXF+TF-IDF\\(5{,}282-dim)};
+  \node[box,  below=4mm  of c1]                (c2)  {CAXF+CharCNN\\(410-dim)};
+  \node[box,  below=4mm  of c2]                (c3)  {CAXF+SentEmb\\(666-dim)};
+
+  % COL 4 — Balancing
+  \node[stageheader, right=20mm of h3]         (h4)  {Balancing};
+  \node[box,  below=5mm  of h4]                (smo) {SMOTE\\Oversampling};
+
+  % COL 5 — Base Models
+  \node[stageheader, right=20mm of h4]         (h5)  {Base Models};
+  \node[box,  below=5mm  of h5]                (xgb) {XGBoost};
+  \node[box,  below=4mm  of xgb]               (lgb) {LightGBM};
+  \node[box,  below=4mm  of lgb]               (cat) {CatBoost};
+
+  % COL 6 — Ensemble
+  \node[stageheader, right=20mm of h5]         (h6)  {Ensemble};
+  \node[ebox, below=5mm  of h6]                (ens) {LCCDE / WSV / BMA\\Stacking / PCER / CCDS};
+
+  % COL 7 — Output
+  \node[stageheader, right=20mm of h6]         (h7)  {Output};
+  \node[wbox, below=5mm  of h7]                (out) {4-Class Prediction:\\Normal / Reflected XSS\\Stored XSS / DOM XSS};
+
+  % ---- Arrows ----
+  % Input -> extraction nodes
+  \draw[arr] (inp.east) -- ++(10mm,0) |- (str.west);
+  \draw[arr] (inp.east) -- ++(10mm,0) |- (tfi.west);
+  \draw[arr] (inp.east) -- ++(10mm,0) |- (cnn.west);
+  \draw[arr] (inp.east) -- ++(10mm,0) |- (mini.west);
+
+  % Extraction -> CAXF vectors
+  \draw[arr] (str.east)  -- ++(10mm,0) |- (c1.west);
+  \draw[arr] (tfi.east)  -- ++(10mm,0) |- (c1.west);
+  \draw[arr] (cnn.east)  -- ++(10mm,0) |- (c2.west);
+  \draw[arr] (mini.east) -- ++(10mm,0) |- (c3.west);
+
+  % CAXF vectors -> SMOTE
+  \draw[arr] (c1.east) -- ++(10mm,0) |- (smo.west);
+  \draw[arr] (c2.east) -- ++(10mm,0) |- (smo.west);
+  \draw[arr] (c3.east) -- ++(10mm,0) |- (smo.west);
+
+  % SMOTE -> base models
+  \draw[arr] (smo.east) -- ++(10mm,0) |- (xgb.west);
+  \draw[arr] (smo.east) -- ++(10mm,0) |- (lgb.west);
+  \draw[arr] (smo.east) -- ++(10mm,0) |- (cat.west);
+
+  % Base models -> ensemble
+  \draw[arr] (xgb.east) -- ++(10mm,0) |- (ens.west);
+  \draw[arr] (lgb.east) -- ++(10mm,0) |- (ens.west);
+  \draw[arr] (cat.east) -- ++(10mm,0) |- (ens.west);
+
+  % Ensemble -> output
+  \draw[arr] (ens.east) -- (out.west);
+
+\end{tikzpicture}%
+}%
+\caption{XSS Sentinel end-to-end pipeline (seven stages). Raw payload $\to$
+         CAXF feature extraction (five structural sub-extractors plus TF-IDF, CharCNN,
+         and MiniLM deep-embedding backends) $\to$ three CAXF feature vectors
+         (5{,}282-dim, 410-dim, 666-dim) $\to$ SMOTE oversampling $\to$
+         three gradient-boosting base classifiers $\to$ six ensemble decision strategies
+         $\to$ four-class XSS prediction output.}
+\label{fig:pipeline}
+\end{figure}
 
 %==========================================================================
 \section{Preliminaries / Background}
@@ -923,66 +1039,12 @@ All five novel ensemble strategies improve upon LCCDE on at least one feature re
 confirming the core hypothesis that probabilistic and adaptive decision strategies add value over
 fixed leader-confidence rules.
 
-\subsubsection{Pipeline Block Diagram}
-
-Figure~\ref{fig:pipeline} presents the end-to-end XSS Sentinel architecture, summarising the
-five-stage flow from raw payload ingestion through CAXF feature extraction, SMOTE balancing,
-base-classifier training, and six-way ensemble fusion to the four-class prediction output.
-
-\begin{figure}[ht]
-\centering
-\begin{tikzpicture}[
-    node distance = 5mm and 8mm,
-    box/.style  = {rectangle, draw=black!70, rounded corners=3pt,
-                   fill=blue!10, minimum width=2.5cm, minimum height=7mm,
-                   align=center, font=\footnotesize},
-    ebox/.style = {rectangle, draw=black!70, rounded corners=3pt,
-                   fill=orange!15, minimum width=2.5cm, minimum height=7mm,
-                   align=center, font=\footnotesize},
-    wbox/.style = {rectangle, draw=black!70, rounded corners=3pt,
-                   fill=green!12, minimum width=2.5cm, minimum height=7mm,
-                   align=center, font=\footnotesize},
-    arr/.style  = {-{Latex[length=2.5mm]}, thick}
-  ]
-  \node[box] (inp) {Raw XSS Payload\\(Text String)};
-  \node[box, right=10mm of inp] (str) {5 Structural\\Sub-Extractors\\(HTML/JS/URL/SC/KW)};
-  \node[box, above=5mm of str] (tfidf) {TF-IDF Char\\N-Gram (5,000d)};
-  \node[box, below=3mm of str]  (cnn)   {CharCNN\\Embedding (128d)};
-  \node[box, below=3mm of cnn]  (mini)  {MiniLM\\SentEmb (384d)};
-  \node[box, right=10mm of str] (c1) {CAXF+TF-IDF\\5,282-dim};
-  \node[box, below=3mm of c1]   (c2) {CAXF+CharCNN\\410-dim};
-  \node[box, below=3mm of c2]   (c3) {CAXF+SentEmb\\666-dim};
-  \node[box, right=10mm of c1] (smo) {SMOTE\\Balancing};
-  \node[box, right=10mm of smo] (lgbm) {LightGBM};
-  \node[box, above=4mm of lgbm] (xgb)  {XGBoost};
-  \node[box, below=4mm of lgbm] (cat)  {CatBoost};
-  \node[ebox, right=10mm of lgbm] (ens) {Six Ensemble\\Strategies\\(LCCDE/WSV/BMA/\\Stacking/PCER/CCDS)};
-  \node[wbox, right=10mm of ens] (out) {4-Class\\Prediction:\\DOM / Normal /\\Reflected / Stored};
-
-  \draw[arr] (inp) -- (str);
-  \draw[arr] (inp) |- (tfidf);
-  \draw[arr] (inp) |- (cnn);
-  \draw[arr] (inp) |- (mini);
-  \draw[arr] (str)   -- (c1);
-  \draw[arr] (tfidf) -| (c1);
-  \draw[arr] (cnn)   |- (c2);
-  \draw[arr] (mini)  |- (c3);
-  \draw[arr] (c1) -- (smo);
-  \draw[arr] (c2) -| (smo);
-  \draw[arr] (c3) -| (smo);
-  \draw[arr] (smo) -- (xgb);
-  \draw[arr] (smo) -- (lgbm);
-  \draw[arr] (smo) -- (cat);
-  \draw[arr] (xgb)  -| (ens);
-  \draw[arr] (lgbm) -- (ens);
-  \draw[arr] (cat)  -| (ens);
-  \draw[arr] (ens) -- (out);
-\end{tikzpicture}
-\caption{XSS Sentinel overall pipeline: raw payload $\to$ CAXF feature extraction (three embedding
-         backends) $\to$ SMOTE balancing $\to$ three gradient-boosting base classifiers $\to$ six
-         ensemble decision strategies $\to$ four-class XSS prediction.}
-\label{fig:pipeline}
-\end{figure}
+The end-to-end XSS Sentinel pipeline is shown in Figure~\ref{fig:pipeline}, presented
+after the Introduction for reader orientation. Seven stages are illustrated: raw payload
+input $\to$ CAXF feature extraction (five structural sub-extractors plus TF-IDF, CharCNN,
+and MiniLM backends) $\to$ three CAXF feature vectors $\to$ SMOTE oversampling $\to$
+three gradient-boosting base classifiers $\to$ six ensemble decision strategies $\to$
+four-class XSS prediction output.
 
 %==========================================================================
 \section{Conclusion}
