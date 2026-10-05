@@ -1,0 +1,16 @@
+n = 10917
+overall agreement with rule-based relabeller: 0.9974
+
+confusion (rows = Final_Label, cols = rule-based label):
+rule_label     DOM-based XSS  Normal  Reflected XSS  Stored XSS
+Final_Label                                                    
+DOM-based XSS              2       0              7          21
+Normal                     0    3594              0           0
+Reflected XSS              0       0           6795           0
+Stored XSS                 0       0              0         498
+
+per-class agreement:
+  DOM-based XSS : 0.0667  (n=30)
+  Normal        : 1.0000  (n=3594)
+  Reflected XSS : 1.0000  (n=6795)
+  Stored XSS    : 1.0000  (n=498)

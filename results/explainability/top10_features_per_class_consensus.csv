@@ -1,0 +1,41 @@
+cls,rank,feature,group,consensus_share
+DOM-based XSS,1,kw:document,XSS keywords,0.3335745632648468
+DOM-based XSS,2,ngram:'ment',Char n-gram TF-IDF,0.1368606835603714
+DOM-based XSS,3,kw:location,XSS keywords,0.04022669419646263
+DOM-based XSS,4,char[/],Special chars,0.030890783295035362
+DOM-based XSS,5,char[<],Special chars,0.024139627814292908
+DOM-based XSS,6,ngram:'ume',Char n-gram TF-IDF,0.0203725453466177
+DOM-based XSS,7,ngram:'t(1)',Char n-gram TF-IDF,0.019965404644608498
+DOM-based XSS,8,ngram:'ert(1',Char n-gram TF-IDF,0.01938025839626789
+DOM-based XSS,9,ngram:'vas',Char n-gram TF-IDF,0.0184896532446146
+DOM-based XSS,10,ngram:' </',Char n-gram TF-IDF,0.01696501486003399
+Normal,1,ngram:' </',Char n-gram TF-IDF,0.19050729274749756
+Normal,2,ngram:'lert',Char n-gram TF-IDF,0.162475124001503
+Normal,3,kw:alert,XSS keywords,0.061494629830121994
+Normal,4,char[(],Special chars,0.05617528781294823
+Normal,5,ngram:'(1)',Char n-gram TF-IDF,0.04454931244254112
+Normal,6,ngram:'ass=',Char n-gram TF-IDF,0.04002689942717552
+Normal,7,char[<],Special chars,0.022335804998874664
+Normal,8,ngram:'ocu',Char n-gram TF-IDF,0.020597068592905998
+Normal,9,ngram:'t(1)',Char n-gram TF-IDF,0.015921497717499733
+Normal,10,ngram:'ale',Char n-gram TF-IDF,0.014594406820833683
+Reflected XSS,1,kw:alert,XSS keywords,0.19834071397781372
+Reflected XSS,2,kw:svg,XSS keywords,0.07836086302995682
+Reflected XSS,3,ngram:'ert(',Char n-gram TF-IDF,0.06560876220464706
+Reflected XSS,4,ngram:'t(1',Char n-gram TF-IDF,0.05262928828597069
+Reflected XSS,5,<embed>,HTML tags,0.038413576781749725
+Reflected XSS,6,<iframe>,HTML tags,0.03550278767943382
+Reflected XSS,7,kw:script,XSS keywords,0.03432682529091835
+Reflected XSS,8,<object>,HTML tags,0.022222556173801422
+Reflected XSS,9,ngram:'svg',Char n-gram TF-IDF,0.02140859328210354
+Reflected XSS,10,ngram:'ert(1',Char n-gram TF-IDF,0.019709380343556404
+Stored XSS,1,ngram:'svg>',Char n-gram TF-IDF,0.09739456325769424
+Stored XSS,2,ngram:' </',Char n-gram TF-IDF,0.07123047858476639
+Stored XSS,3,ngram:'ment',Char n-gram TF-IDF,0.05474482476711273
+Stored XSS,4,<embed>,HTML tags,0.04506111517548561
+Stored XSS,5,ngram:' on',Char n-gram TF-IDF,0.04268569126725197
+Stored XSS,6,ngram:'doc',Char n-gram TF-IDF,0.03085063211619854
+Stored XSS,7,char[<],Special chars,0.03075377456843853
+Stored XSS,8,<iframe>,HTML tags,0.029995081946253777
+Stored XSS,9,<object>,HTML tags,0.02758558839559555
+Stored XSS,10,<script>,HTML tags,0.02740841545164585

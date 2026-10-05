@@ -1,0 +1,117 @@
+======================================================================
+SHAP EXPLAINABILITY - CAXF + TF-IDF  (seed=42)
+======================================================================
+classes: ['DOM-based XSS', 'Normal', 'Reflected XSS', 'Stored XSS']
+train (7641, 5282), test (3276, 5282); test support: {'DOM-based XSS': 9, 'Normal': 1079, 'Reflected XSS': 2039, 'Stored XSS': 149}
+
+[Sanity] cached models reproduce the paper's test metrics:
+  LightGBM  macro-F1 = 0.9510  (paper 0.9503)
+  XGBoost   macro-F1 = 0.9667  (paper 0.9188)
+  CatBoost  macro-F1 = 0.8574  (paper 0.8601)
+  Stacking  macro-F1 = 0.9530  (paper 0.9530), acc = 0.9969
+
+[SHAP] computing TreeSHAP on the test set ...
+  LightGBM  shape=(3276, 5282, 4)   13.5s  max|softmax(base+sum(SHAP)) - predict_proba| = 4.18e-07
+  XGBoost   shape=(3276, 5282, 4)    9.3s  max|softmax(base+sum(SHAP)) - predict_proba| = 6.85e-07
+  CatBoost  shape=(3276, 5282, 4)   10.0s  max|softmax(base+sum(SHAP)) - predict_proba| = 2.37e-07
+
+Top-5 consensus features per class (share of class-level mean|SHAP|):
+  DOM-based XSS : kw:document (33.4%), ngram:'ment' (13.7%), kw:location (4.0%), char[/] (3.1%), char[<] (2.4%)
+  Normal        : ngram:' </' (19.1%), ngram:'lert' (16.2%), kw:alert (6.1%), char[(] (5.6%), ngram:'(1)' (4.5%)
+  Reflected XSS : kw:alert (19.8%), kw:svg (7.8%), ngram:'ert(' (6.6%), ngram:'t(1' (5.3%), <embed> (3.8%)
+  Stored XSS    : ngram:'svg>' (9.7%), ngram:' </' (7.1%), ngram:'ment' (5.5%), <embed> (4.5%), ngram:' on' (4.3%)
+
+Share of total mean|SHAP| by CAXF component (%):
+                     LightGBM    XGBoost   CatBoost  Consensus  n_features
+HTML tags           11.700000   8.200000   3.300000   7.700000         161
+JS events            0.100000   0.000000   0.000000   0.000000          93
+URL patterns         0.200000   0.300000   0.000000   0.200000           1
+Special chars        5.200000  10.000000   8.100000   7.800000          13
+XSS keywords        35.700001  20.299999   4.300000  20.100000          14
+Char n-gram TF-IDF  47.000000  61.200001  84.300003  64.199997        5000
+
+Share by CAXF component per class, consensus (%):
+                    DOM-based XSS     Normal  Reflected XSS  Stored XSS
+HTML tags                2.100000   1.400000      12.000000        14.9
+JS events                0.000000   0.000000       0.100000         0.0
+URL patterns             0.000000   0.400000       0.000000         0.1
+Special chars            7.300000  12.400000       3.200000         7.8
+XSS keywords            39.700001   6.600000      32.799999         4.7
+Char n-gram TF-IDF      50.799999  79.099998      51.900002        72.5
+
+Cross-model agreement of global importances
+Spearman rho (all 5,282 features):
+          LightGBM  XGBoost  CatBoost
+LightGBM     1.000    0.619     0.279
+XGBoost      0.619    1.000     0.329
+CatBoost     0.279    0.329     1.000
+Top-20 Jaccard overlap:
+          LightGBM  XGBoost  CatBoost
+LightGBM     1.000    0.667     0.176
+XGBoost      0.667    1.000     0.250
+CatBoost     0.176    0.250     1.000
+
+Deletion test (macro-F1 after zeroing k features; SHAP-ranked vs random):
+           target   k  f1_remove_top_shap  f1_remove_random_mean  f1_remove_random_std
+Stacking ensemble   0              0.9530                 0.9530                0.0000
+Stacking ensemble   1              0.9476                 0.9530                0.0000
+Stacking ensemble   2              0.9479                 0.9530                0.0000
+Stacking ensemble   3              0.9153                 0.9530                0.0000
+Stacking ensemble   5              0.7334                 0.9530                0.0000
+Stacking ensemble  10              0.7165                 0.9530                0.0000
+Stacking ensemble  20              0.2645                 0.9530                0.0000
+Stacking ensemble  50              0.1953                 0.9494                0.0073
+Stacking ensemble 100              0.1239                 0.9552                0.0053
+         LightGBM   0              0.9510                 0.9510                0.0000
+         LightGBM   1              0.9110                 0.9510                0.0000
+         LightGBM   2              0.9067                 0.9508                0.0004
+         LightGBM   3              0.8743                 0.9510                0.0000
+         LightGBM   5              0.5836                 0.9510                0.0000
+         LightGBM  10              0.4195                 0.9510                0.0000
+         LightGBM  20              0.1968                 0.9510                0.0000
+         LightGBM  50              0.1287                 0.9420                0.0126
+         LightGBM 100              0.1239                 0.9433                0.0126
+          XGBoost   0              0.9667                 0.9667                0.0000
+          XGBoost   1              0.9668                 0.9667                0.0000
+          XGBoost   2              0.9223                 0.9643                0.0047
+          XGBoost   3              0.7432                 0.9667                0.0000
+          XGBoost   5              0.7413                 0.9663                0.0007
+          XGBoost  10              0.3464                 0.9667                0.0000
+          XGBoost  20              0.2379                 0.9643                0.0047
+          XGBoost  50              0.1492                 0.9538                0.0171
+          XGBoost 100              0.1239                 0.9617                0.0089
+         CatBoost   0              0.8574                 0.8574                0.0000
+         CatBoost   1              0.8574                 0.8574                0.0000
+         CatBoost   2              0.8545                 0.8574                0.0000
+         CatBoost   3              0.8571                 0.8574                0.0000
+         CatBoost   5              0.8384                 0.8574                0.0000
+         CatBoost  10              0.7699                 0.8574                0.0000
+         CatBoost  20              0.4615                 0.8583                0.0018
+         CatBoost  50              0.2616                 0.8575                0.0002
+         CatBoost 100              0.1834                 0.8556                0.0012
+
+Stacking: coefficient of each base model's OWN-class probability (rows=class):
+               LightGBM  XGBoost  CatBoost
+DOM-based XSS      0.84     1.07     -0.97
+Normal             1.08     1.65      2.64
+Reflected XSS      1.52     1.98     -1.25
+Stored XSS         1.18     1.42     -0.32
+
+CPWA class-conditional weights w_kc (in-sample precision based):
+               LightGBM  XGBoost  CatBoost
+DOM-based XSS    0.3723   0.3723    0.2553
+Normal           0.3339   0.3336    0.3325
+Reflected XSS    0.3333   0.3333    0.3333
+Stored XSS       0.3505   0.3505    0.2990
+PCER expert table: {'DOM-based XSS': 'LightGBM', 'Normal': 'LightGBM', 'Reflected XSS': 'LightGBM', 'Stored XSS': 'LightGBM'}
+
+Local explanations (ensemble-average SHAP for the true class):
+  [local_dom_correct] test idx 267: true=DOM-based XSS, Stacking predicted=DOM-based XSS
+      payload: '<a onmouseover=alert(document.cookie)\\>xxs link\\</a\\>'
+      top contributors: kw:document (+4.24), ngram:'ment' (+0.97), char[/] (-0.35), char[<] (-0.22), ngram:'ume' (+0.14), <a> (-0.08)
+  [local_dom_missed] test idx 1750: true=DOM-based XSS, Stacking predicted=Stored XSS
+      payload: "<svg><script xlink:href=data&colon;,window.open('https://www.google.com/')></script"
+      top contributors: kw:window (+2.76), kw:document (-1.01), ngram:'ment' (-0.47), char[/] (-0.27), kw:location (-0.13), ngram:'ref' (-0.10)
+  [local_stored_correct] test idx 49: true=Stored XSS, Stacking predicted=Stored XSS
+      payload: 'al\\u0065rt(1)'
+      top contributors: ngram:' on' (+1.26), ngram:'(1)' (+1.18), ngram:' </' (+0.45), ngram:'svg>' (-0.37), ngram:'doc' (+0.30), <p> (+0.25)

@@ -1,0 +1,5 @@
+,LightGBM P(DOM-based),LightGBM P(Normal),LightGBM P(Reflected),LightGBM P(Stored),XGBoost P(DOM-based),XGBoost P(Normal),XGBoost P(Reflected),XGBoost P(Stored),CatBoost P(DOM-based),CatBoost P(Normal),CatBoost P(Reflected),CatBoost P(Stored)
+DOM-based XSS,0.842,-0.539,-0.149,-0.374,1.071,-0.822,-0.192,-0.278,-0.966,-0.787,0.189,1.343
+Normal,0.495,1.076,-0.919,-0.59,-0.144,1.649,-1.001,-0.442,-1.142,2.637,-0.871,-0.562
+Reflected XSS,-0.562,-0.584,1.516,-0.219,-0.463,-0.658,1.977,-0.704,2.811,-0.952,-1.252,-0.456
+Stored XSS,-0.775,0.048,-0.448,1.183,-0.464,-0.169,-0.784,1.425,-0.703,-0.899,1.933,-0.324

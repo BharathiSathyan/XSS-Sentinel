@@ -1,0 +1,23 @@
+[
+  {
+    "tag": "local_dom_correct",
+    "test_index": 267,
+    "true": "DOM-based XSS",
+    "stacking_pred": "DOM-based XSS",
+    "payload": "<a onmouseover=alert(document.cookie)\\>xxs link\\</a\\>"
+  },
+  {
+    "tag": "local_dom_missed",
+    "test_index": 1750,
+    "true": "DOM-based XSS",
+    "stacking_pred": "Stored XSS",
+    "payload": "<svg><script xlink:href=data&colon;,window.open('https://www.google.com/')></script"
+  },
+  {
+    "tag": "local_stored_correct",
+    "test_index": 49,
+    "true": "Stored XSS",
+    "stacking_pred": "Stored XSS",
+    "payload": "al\\u0065rt(1)"
+  }
+]

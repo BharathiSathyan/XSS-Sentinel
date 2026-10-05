@@ -1,0 +1,61 @@
+model,rank,feature,group,mean_abs_shap
+LightGBM,1,kw:alert,XSS keywords,1.3065985441207886
+LightGBM,2,ngram:' </',Char n-gram TF-IDF,0.7852057218551636
+LightGBM,3,kw:document,XSS keywords,0.7135089039802551
+LightGBM,4,ngram:'lert',Char n-gram TF-IDF,0.4503764510154724
+LightGBM,5,kw:svg,XSS keywords,0.3991823196411133
+LightGBM,6,ngram:'svg>',Char n-gram TF-IDF,0.3737145662307739
+LightGBM,7,<embed>,HTML tags,0.2867976427078247
+LightGBM,8,<iframe>,HTML tags,0.2364310622215271
+LightGBM,9,<object>,HTML tags,0.19650155305862427
+LightGBM,10,ngram:'ert(',Char n-gram TF-IDF,0.1704929918050766
+LightGBM,11,kw:script,XSS keywords,0.16922464966773987
+LightGBM,12,char[(],Special chars,0.16487254202365875
+LightGBM,13,ngram:'ass=',Char n-gram TF-IDF,0.15947143733501434
+LightGBM,14,ngram:'t(1',Char n-gram TF-IDF,0.15144675970077515
+LightGBM,15,ngram:'ment',Char n-gram TF-IDF,0.13581286370754242
+LightGBM,16,ngram:' on',Char n-gram TF-IDF,0.1257256418466568
+LightGBM,17,ngram:'doc',Char n-gram TF-IDF,0.10805138200521469
+LightGBM,18,ngram:'ocu',Char n-gram TF-IDF,0.10139796137809753
+LightGBM,19,ngram:'/sc',Char n-gram TF-IDF,0.09418566524982452
+LightGBM,20,ngram:'(1)',Char n-gram TF-IDF,0.09108690917491913
+XGBoost,1,ngram:' </',Char n-gram TF-IDF,0.38494887948036194
+XGBoost,2,kw:document,XSS keywords,0.378772497177124
+XGBoost,3,ngram:'ment',Char n-gram TF-IDF,0.3749687075614929
+XGBoost,4,kw:alert,XSS keywords,0.37327319383621216
+XGBoost,5,ngram:'lert',Char n-gram TF-IDF,0.3424888551235199
+XGBoost,6,ngram:'ert(',Char n-gram TF-IDF,0.21258845925331116
+XGBoost,7,ngram:'(1)',Char n-gram TF-IDF,0.18014654517173767
+XGBoost,8,ngram:'t(1',Char n-gram TF-IDF,0.15048258006572723
+XGBoost,9,<embed>,HTML tags,0.12238858640193939
+XGBoost,10,char[(],Special chars,0.12233573198318481
+XGBoost,11,char[/],Special chars,0.11483152210712433
+XGBoost,12,kw:svg,XSS keywords,0.11032194644212723
+XGBoost,13,ngram:'svg>',Char n-gram TF-IDF,0.09149684756994247
+XGBoost,14,<iframe>,HTML tags,0.08654115349054337
+XGBoost,15,char[<],Special chars,0.08238497376441956
+XGBoost,16,ngram:'ert(1',Char n-gram TF-IDF,0.07559513300657272
+XGBoost,17,kw:location,XSS keywords,0.07192220538854599
+XGBoost,18,<object>,HTML tags,0.0668252632021904
+XGBoost,19,ngram:' on',Char n-gram TF-IDF,0.06652409583330154
+XGBoost,20,ngram:'ass=',Char n-gram TF-IDF,0.06369410455226898
+CatBoost,1,ngram:' </',Char n-gram TF-IDF,0.13030889630317688
+CatBoost,2,ngram:'t(1)',Char n-gram TF-IDF,0.12268932163715363
+CatBoost,3,ngram:'ment',Char n-gram TF-IDF,0.119432732462883
+CatBoost,4,ngram:'ert(1',Char n-gram TF-IDF,0.09475772827863693
+CatBoost,5,char[<],Special chars,0.09215804934501648
+CatBoost,6,ngram:'men',Char n-gram TF-IDF,0.08296076208353043
+CatBoost,7,ngram:' on',Char n-gram TF-IDF,0.0755196213722229
+CatBoost,8,ngram:'ale',Char n-gram TF-IDF,0.07097829878330231
+CatBoost,9,ngram:'lert',Char n-gram TF-IDF,0.06529835611581802
+CatBoost,10,ngram:'ler',Char n-gram TF-IDF,0.0631132498383522
+CatBoost,11,ngram:'ert(',Char n-gram TF-IDF,0.06204827129840851
+CatBoost,12,ngram:'rt(1)',Char n-gram TF-IDF,0.0588967390358448
+CatBoost,13,ngram:'ume',Char n-gram TF-IDF,0.0531490221619606
+CatBoost,14,ngram:'lert(',Char n-gram TF-IDF,0.052707571536302567
+CatBoost,15,ngram:'(1)',Char n-gram TF-IDF,0.04681529849767685
+CatBoost,16,char[)],Special chars,0.046710532158613205
+CatBoost,17,ngram:'rt(',Char n-gram TF-IDF,0.04552062600851059
+CatBoost,18,ngram:'svg',Char n-gram TF-IDF,0.038873091340065
+CatBoost,19,ngram:'vg>',Char n-gram TF-IDF,0.03653153032064438
+CatBoost,20,<svg>,HTML tags,0.03591534122824669
