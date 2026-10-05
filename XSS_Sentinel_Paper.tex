@@ -13,6 +13,7 @@
 \usepackage{algorithmic}
 \usepackage{algorithm}
 \usepackage{graphicx}
+\graphicspath{{figures/}{results/}}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
@@ -817,7 +818,7 @@ effectiveness of class-weighting vs.\ SMOTE at these feature dimensionalities.
 \end{table}
 
 \textbf{Six-Ensemble Comparison.}
-Table~\ref{tab:ensembles} reports the macro-F1 for all six ensemble strategies across the three
+Table~\ref{tab:ensembles} and Figure~\ref{fig:macro_f1_ensemble_comparison} report the macro-F1 for all six ensemble strategies across the three
 feature representations (evidence: \texttt{results/caxf\_*\_results/ensemble\_comparison\_seed\_42.txt}).
 Every ensemble method outperforms its corresponding set of base classifiers individually, confirming
 the value of ensemble fusion. Stacking leads for both TF-IDF (95.30\%) and CharCNN (95.28\%), while
@@ -841,8 +842,15 @@ LCCDE (base) & 0.9472 & 0.9472 & 0.9580 & SentEmb \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{figures/macro_f1_ensemble_comparison.png}
+\caption{Macro-F1 comparison across all six ensemble strategies and three CAXF feature representations (seed=42, test $n{=}3{,}276$). Dashed horizontal line marks the baseline LCCDE score on TF-IDF (94.72\%). BMA, PCER, and WSV on SentEmb achieve the peak macro-F1 of 95.98\%, while Stacking dominates on TF-IDF (95.30\%) and CharCNN (95.28\%).}
+\label{fig:macro_f1_ensemble_comparison}
+\end{figure}
+
 \textbf{Full Metrics for All Configurations.}
-Table~\ref{tab:fullmetrics} provides the complete metric profile---accuracy, macro-precision,
+Table~\ref{tab:fullmetrics} and Figure~\ref{fig:full_metrics_heatmap} provide the complete metric profile---accuracy, macro-precision,
 macro-recall, macro-F1, and inference time---for all eighteen configurations. Stacking+TF-IDF
 leads on macro-recall (96.76\%), while BMA/PCER/WSV+SentEmb lead on macro-precision (99.29\%).
 CCDS+TF-IDF is the slowest at 2.97\,s due to pairwise JSD computation over the 5,282-dim space;
@@ -883,6 +891,13 @@ Stacking and BMA+CharCNN are the fastest at 0.08\,s.
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/full_metrics_heatmap.png}
+\caption{Full metrics heatmap across all eighteen configurations (seed=42, test $n{=}3{,}276$). Metrics include Accuracy, Macro-Precision, Macro-Recall, Macro-F1, and Inference Time in seconds (colour-coded per column such that green indicates superior performance, with inference time inverted so green denotes faster inference). Stacking+TF-IDF achieves the highest macro-recall (96.76\%), while BMA/PCER/WSV+SentEmb attain the highest macro-precision (99.29\%).}
+\label{fig:full_metrics_heatmap}
+\end{figure}
 
 \textbf{Per-Class F1 Breakdown.}
 Table~\ref{tab:perclass} shows per-class F1 for CAXF+TF-IDF. All ensembles achieve
@@ -974,7 +989,7 @@ correctly (78\% recall) but with zero false positives (precision=1.00).
 \subsubsection{Findings / Discussions (Inference)}
 
 Stacking is the best-performing ensemble for TF-IDF (macro-F1 95.30\%) and CharCNN (macro-F1
-95.28\%), ranking first in both columns of Table~\ref{tab:ensembles}. The 5-fold OOF meta-learner
+95.28\%), ranking first in both columns of Table~\ref{tab:ensembles} and highlighted visually in Figure~\ref{fig:macro_f1_ensemble_comparison}. The 5-fold OOF meta-learner
 succeeds because it can learn that LightGBM's probability distributions are more reliable for
 rare classes while XGBoost's are more precise for majority classes, effectively combining the
 complementary strengths of the three base classifiers. On TF-IDF features, Stacking achieves
