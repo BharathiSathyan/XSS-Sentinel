@@ -132,14 +132,14 @@ remain: class leaders are assigned heuristically rather than via cross-validatio
 not systematically evaluated for multi-class XSS discrimination across multiple feature spaces; and
 probabilistic ensemble alternatives have not been explored.
 
-This paper makes five contributions. First, it introduces a multi-class CAXF pipeline with three
+This paper makes six contributions. First, it introduces a multi-class CAXF pipeline with three
 deep-embedding backends: TF-IDF character n-grams, a Character-level CNN (CharCNN), and
 all-MiniLM-L6-v2 sentence embeddings. Second, it presents \textit{Strict LCCDE}, a reimplementation
 of the LCCDE algorithm using 3-fold OOF cross-validation for data-driven class-leader identification.
 Third, it proposes four ensemble decision strategies: Weighted Soft Voting (WSV), Class-Conditional Precision-Weighted Averaging (CPWA), Per-Class Expert Routing (PCER), and Confidence-Calibrated Dynamic Selection (CCDS).
 Fourth, it contributes a Stacking ensemble with a logistic-regression meta-learner trained on 5-fold
 OOF features. Fifth, it provides a systematic ablation comparing Strict LCCDE vs.\ MVE-CT across all
-three feature representations.
+three feature representations. Sixth, it delivers an in-depth game-theoretic explainability study via TreeSHAP and perturbation analysis across all 5,282 feature dimensions, providing sub-extractor group attribution, per-class decision drivers, and meta-learner weight interpretations.
 
 The remainder of this paper is organised as follows. Section~\ref{sec:prelim} establishes the theoretical background, covering XSS attack taxonomy, feature representation strategies for web payloads, gradient-boosting classifiers, and class-imbalance mitigation via SMOTE. Section~\ref{sec:related} surveys related work in XSS detection, ensemble learning for cybersecurity, and imbalanced classification. Section~\ref{sec:problem} formally states the problem, specifying the inputs, constraints, and objectives. Section~\ref{sec:proposed} presents the proposed XSS Sentinel framework in full, describing data collection, preprocessing, model construction, and the complete experimental evaluation. Section~\ref{sec:conclusion} summarises the conclusions, discusses the pros and limitations of the approach, and Section~\ref{sec:future} outlines directions for future work. Figure~\ref{fig:pipeline} provides a high-level overview of the end-to-end architecture.
 
@@ -429,7 +429,9 @@ compare six ensemble decision strategies (Strict LCCDE, WSV, CPWA, Stacking, PCE
 the LCCDE baseline and individual base classifiers across all three feature spaces, using macro-averaged
 Precision, Recall, and F1-score as primary evaluation metrics. The fourth is to conduct an ablation
 study that evaluates whether OOF-based class-leader identification (Strict LCCDE)
-improves upon the heuristic MVE-CT variant proposed in the base paper~\cite{caxf_lccde2024}.
+improves upon the heuristic MVE-CT variant proposed in the base paper~\cite{caxf_lccde2024}. The fifth
+is to provide fine-grained model interpretability via TreeSHAP feature attribution, identifying the
+causal sub-extractor features and verifying explanation faithfulness via systematic feature deletion.
 
 %==========================================================================
 \section{Proposed Work}
@@ -1072,6 +1074,179 @@ and MiniLM backends) $\to$ three CAXF feature vectors $\to$ SMOTE oversampling $
 three gradient-boosting base classifiers $\to$ six ensemble decision strategies $\to$
 four-class XSS prediction output.
 
+%--------------------------------------------------------------------------
+\subsection{Explainability and Feature Attribution (SHAP Analysis)}
+\label{ssec:explainability}
+%--------------------------------------------------------------------------
+
+In security-critical domains such as automated web application firewalls and intrusion detection,
+black-box classifications are insufficient; security analysts require verifiable evidence of the
+underlying payload characteristics that triggered a detection. To provide full transparency into the
+decision mechanisms of XSS Sentinel, we employ TreeSHAP~\cite{lundberg2017,treeshap2020}, a game-theoretic
+algorithm that computes exact Shapley values for tree-based ensemble models in polynomial time.
+We conduct the explainability analysis on the complete test set ($n=3{,}276$) across all 5,282 feature
+dimensions of the CAXF+TF-IDF pipeline, as its features map directly to human-interpretable linguistic,
+structural, and syntactic entities (in contrast to the opaque latent dimensions of neural CharCNN and MiniLM embeddings).
+
+\subsubsection{Global Feature Importance and Sub-Extractor Group Attribution}
+
+TreeSHAP computes the marginal contribution $\phi_j(i, c)$ of each feature $j$ to the margin (log-odds)
+prediction for class $c$ on sample $i$. Exact additivity is verified across all test instances:
+$\max |\text{softmax}(\phi_0 + \sum_j \phi_j) - P(y|\mathbf{x})| < 7 \times 10^{-7}$.
+Across all three base classifiers (LightGBM, XGBoost, CatBoost), global feature importance rankings reveal
+strong consensus: injection keywords (\texttt{kw:alert}, \texttt{kw:document}, \texttt{kw:svg}), character
+n-grams capturing HTML boundary patterns (\texttt{ngram:' </'}, \texttt{ngram:'lert'}, \texttt{ngram:'ert('}),
+and sensitive structural tags (\texttt{<embed>}, \texttt{<iframe>}) consistently occupy the highest importance ranks.
+
+To evaluate how much each of the six CAXF sub-extractors contributes to the overall detection signal,
+Table~\ref{tab:shap_group_attribution} summarizes the percentage of total mean $|$SHAP$|$ attribution
+allocated to each component across base models and consensus.
+
+\begin{table}[ht]
+\centering
+\caption{CAXF Sub-Extractor Group Attribution: percentage share of total mean $|$SHAP$|$ (seed=42, test $n{=}3{,}276$).}
+\label{tab:shap_group_attribution}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{CAXF Sub-Extractor} & \textbf{LightGBM} & \textbf{XGBoost} & \textbf{CatBoost} & \textbf{Consensus} & \textbf{Feature Count} \\
+\midrule
+Char n-gram TF-IDF & 47.0\% & 61.2\% & 84.3\% & 64.2\% & 5,000 \\
+XSS Keywords        & 35.7\% & 20.3\% &  4.3\% & 20.1\% & 14 \\
+Special Characters  &  5.2\% & 10.0\% &  8.1\% &  7.8\% & 13 \\
+HTML Tags           & 11.7\% &  8.2\% &  3.3\% &  7.7\% & 161 \\
+URL Patterns        &  0.2\% &  0.3\% &  0.0\% &  0.2\% & 1 \\
+JS Events           &  0.1\% &  0.0\% &  0.0\% &  0.0\% & 93 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Crucially, while the 5,000 character n-grams account for 64.2\% of total importance, the 14 engineered
+XSS keywords account for 20.1\% of the entire decision weight, and the 13 special characters account for 7.8\%.
+This confirms that the engineered domain features deliver disproportionately dense security signals relative to their compact dimensionality.
+
+\subsubsection{Per-Class Discriminative Semantic Drivers}
+
+Table~\ref{tab:shap_top_class} reports the top consensus features for each of the four classes.
+Each attack category activates a distinct, semantically grounded set of indicators:
+\begin{itemize}
+  \item \textbf{DOM-based XSS}: Overwhelmingly driven by DOM execution object references: \texttt{kw:document} (33.4\% share), \texttt{ngram:'ment'} (13.7\%), and \texttt{kw:location} (4.0\%), along with structural punctuation \texttt{char[/]} (3.1\%) and \texttt{char[<]} (2.4\%).
+  \item \textbf{Reflected XSS}: Dominated by immediate script execution probes: \texttt{kw:alert} (19.8\%), \texttt{kw:svg} (7.8\%), and sub-token n-grams \texttt{ngram:'ert('} (6.6\%) and \texttt{ngram:'t(1'} (5.3\%), alongside embedded objects (\texttt{<embed>}, \texttt{<iframe>}).
+  \item \textbf{Stored XSS}: Driven by persistent structural tags and element delimiters: \texttt{ngram:'svg>'} (9.7\%), closing tags \texttt{ngram:' </'} (7.1\%), \texttt{<embed>} (4.5\%), \texttt{ngram:' on'} (4.3\%), and \texttt{<script>} (2.7\%).
+  \item \textbf{Normal (Benign)}: Differentiated by closing tag structures (\texttt{ngram:' </'}, 19.1\%) and the explicit absence of payload execution sequences (\texttt{ngram:'lert'}, \texttt{kw:alert}, \texttt{char[(]}).
+\end{itemize}
+
+\begin{table}[ht]
+\centering
+\caption{Top consensus features per class ranked by share of class-level mean $|$SHAP$|$ (seed=42).}
+\label{tab:shap_top_class}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lllc}
+\toprule
+\textbf{Class} & \textbf{Rank \& Feature} & \textbf{CAXF Component} & \textbf{Class Share (\%)} \\
+\midrule
+\multirow{4}{*}{DOM-based XSS}
+  & 1. \texttt{kw:document}     & XSS Keywords        & 33.4\% \\
+  & 2. \texttt{ngram:'ment'}     & Char n-gram TF-IDF  & 13.7\% \\
+  & 3. \texttt{kw:location}     & XSS Keywords        &  4.0\% \\
+  & 4. \texttt{char[/]}         & Special Characters  &  3.1\% \\
+\midrule
+\multirow{4}{*}{Reflected XSS}
+  & 1. \texttt{kw:alert}        & XSS Keywords        & 19.8\% \\
+  & 2. \texttt{kw:svg}          & XSS Keywords        &  7.8\% \\
+  & 3. \texttt{ngram:'ert('}    & Char n-gram TF-IDF  &  6.6\% \\
+  & 4. \texttt{ngram:'t(1'}     & Char n-gram TF-IDF  &  5.3\% \\
+\midrule
+\multirow{4}{*}{Stored XSS}
+  & 1. \texttt{ngram:'svg>'}    & Char n-gram TF-IDF  &  9.7\% \\
+  & 2. \texttt{ngram:' </'}     & Char n-gram TF-IDF  &  7.1\% \\
+  & 3. \texttt{ngram:'ment'}    & Char n-gram TF-IDF  &  5.5\% \\
+  & 4. \texttt{<embed>}         & HTML Tags           &  4.5\% \\
+\midrule
+\multirow{4}{*}{Normal}
+  & 1. \texttt{ngram:' </'}     & Char n-gram TF-IDF  & 19.1\% \\
+  & 2. \texttt{ngram:'lert'}    & Char n-gram TF-IDF  & 16.2\% \\
+  & 3. \texttt{kw:alert}        & XSS Keywords        &  6.1\% \\
+  & 4. \texttt{char[(]}         & Special Characters  &  5.6\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/shap_beeswarm_lgbm_dombased.png}
+  \caption{DOM-based XSS beeswarm (LightGBM)}
+  \label{fig:shap_beeswarm_dom}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/shap_beeswarm_lgbm_stored.png}
+  \caption{Stored XSS beeswarm (LightGBM)}
+  \label{fig:shap_beeswarm_stored}
+\end{subfigure}
+\caption{SHAP summary beeswarm plots for rare classes (test $n{=}3{,}276$). Points represent individual test samples; horizontal position indicates positive/negative impact on the log-odds of the class, colour indicates raw feature value (red = high, blue = low).}
+\label{fig:shap_beeswarm}
+\end{figure}
+
+The beeswarm distributions in Figure~\ref{fig:shap_beeswarm} illustrate the non-linear thresholding
+behaviour of the trees: the presence (red) of \texttt{kw:document} shifts the log-odds of DOM-based XSS
+by up to $+10.5$, whereas its absence (blue) imposes a mild negative penalty.
+
+\subsubsection{Ensemble Decision Interpretation and Meta-Learner Weights}
+
+To explain how the Stacking ensemble fuses the base models, we inspect the learned weight matrix of the
+multinomial logistic-regression meta-learner. The meta-learner assigns strong positive weights to each model's
+corresponding class prediction with distinct model specialisation:
+\begin{itemize}
+  \item \textbf{Normal}: Heavily trusts CatBoost ($+2.64$), XGBoost ($+1.65$), and LightGBM ($+1.08$), exploiting CatBoost's high unweighted specificity.
+  \item \textbf{Reflected XSS}: Primarily driven by XGBoost ($+1.98$) and LightGBM ($+1.52$), while downweighting CatBoost ($-1.25$).
+  \item \textbf{DOM-based XSS}: Balances XGBoost ($+1.07$) and LightGBM ($+0.84$) with positive weights, offsetting CatBoost ($-0.97$).
+  \item \textbf{Stored XSS}: Jointly trusts XGBoost ($+1.42$) and LightGBM ($+1.18$).
+\end{itemize}
+This explains why Stacking achieves the highest overall macro-F1 on TF-IDF (95.30\%): it dynamically
+combines the high recall of SMOTE-augmented LightGBM/XGBoost with the high precision of CatBoost on majority samples.
+
+\subsubsection{Faithfulness Validation via Feature Deletion Test}
+
+To verify the faithfulness of the SHAP explanations, we conducted a feature deletion (ablation) experiment
+where features are progressively zeroed out in descending order of SHAP importance versus a random deletion baseline
+(averaged across 5 random draws). Zeroing out just the top 5 consensus SHAP features causes the Stacking ensemble's
+macro-F1 to collapse sharply from 0.9530 to 0.7334, and zeroing the top 20 features drops it to 0.2645.
+In contrast, zeroing 20 randomly selected features yields a macro-F1 of 0.9530 ($0.00\%$ change).
+This steep performance drop confirms that the identified features are the true causal drivers of the model's classifications.
+
+\subsubsection{Local Sample Explanations (Waterfall Analysis)}
+
+Figure~\ref{fig:shap_local} provides sample-level local explanations using ensemble-average SHAP waterfalls
+for both a correctly classified and a misclassified DOM-based XSS payload.
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/shap_local_dom_correct.png}
+  \caption{Correctly classified DOM payload\\(\texttt{<a onmouseover=alert(document.cookie)>...})}
+  \label{fig:shap_local_correct}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/shap_local_dom_missed.png}
+  \caption{Misclassified DOM payload\\(\texttt{<svg><script xlink:href=data...,window.open(...)>})}
+  \label{fig:shap_local_missed}
+\end{subfigure}
+\caption{Local SHAP waterfall explanations for DOM-based XSS samples (seed=42). \textbf{(a)}~The presence of \texttt{kw:document} ($+4.24$) and \texttt{ngram:'ment'} ($+0.97$) decisively drives correct DOM classification. \textbf{(b)}~In a missed sample, \texttt{kw:window} ($+2.76$) is offset by negative penalties on absent standard DOM tokens (\texttt{kw:document} $-1.01$), resulting in misclassification as Stored XSS.}
+\label{fig:shap_local}
+\end{figure}
+
+In Figure~\ref{fig:shap_local}(a), the payload \texttt{<a onmouseover=alert(document.cookie)>xxs link</a>}
+is correctly classified as DOM-based XSS because \texttt{kw:document} contributes $+4.24$ to the log-odds.
+In Figure~\ref{fig:shap_local}(b), the payload \texttt{<svg><script xlink:href=data:window.open(...)>}
+is classified as Stored XSS because the dominant structural token \texttt{<svg>} pushes the prediction toward Stored XSS,
+providing diagnostic insight into remaining rare-class boundary confusion.
+
 %==========================================================================
 \section{Conclusion}
 \label{sec:conclusion}
@@ -1153,9 +1328,9 @@ batched GPU execution---would reduce per-sample extraction from approximately 60
 enabling real-time WAF integration at production traffic volumes. A cross-dataset generalisation study
 on benchmarks such as the CSIC HTTP Dataset and real anonymised WAF logs would measure the
 transferability of CAXF representations beyond the Kaggle dataset and provide stronger evidence for
-deployment readiness. Finally, integrating SHAP or LIME explanations over the CAXF feature dimensions
-would identify which structural or n-gram features most strongly indicate each XSS variant, supporting
-analyst trust and enabling the semi-automatic generation of interpretable WAF rules from model decisions.
+deployment readiness. Finally, extending the current SHAP explainability framework toward
+counterfactual payload generation and automated WAF regex rule synthesis from top-ranked SHAP features
+represents a promising avenue to directly operationalise model explanations into active defences.
 
 %==========================================================================
 \bibliographystyle{plain}
