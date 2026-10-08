@@ -1,0 +1,5 @@
+,LightGBM,XGBoost,CatBoost
+DOM-based XSS,0.9167,0.9167,0.6286
+Normal,0.9992,0.9984,0.9952
+Reflected XSS,0.9996,0.9996,0.9996
+Stored XSS,0.9943,0.9943,0.8483
