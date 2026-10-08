@@ -1342,25 +1342,7 @@ and expert assignments optimistic.
 \label{sec:future}
 %==========================================================================
 
-Several directions remain open for extending XSS Sentinel. Adversarial payload augmentation using
-grammar-based mutators such as polyglot generators and DOM-Fuzzer would harden the model against
-evasion by introducing diverse obfuscation patterns during training beyond what SMOTE alone can
-provide. Extending the label set to a five-class schema that includes mutation-based XSS (mXSS)---a
-category involving browser-parser quirks not represented in the current four-class benchmark---would
-address a growing class of attacks invisible to current WAF rules. Online adaptive ensemble weighting
-could replace the static CPWA and WSV weights with Bayesian posterior updates that adjust model
-influence as new labelled data arrives in a streaming deployment, enabling the framework to gracefully
-track concept drift. CCDS threshold calibration via Platt scaling or isotonic regression would
-calibrate base-model confidence scores before JSD computation, addressing the
-underperformance observed on CharCNN features by ensuring the routing thresholds are appropriate for
-each feature space's characteristic disagreement distribution. GPU-accelerated MiniLM inference---using
-batched GPU execution---would reduce per-sample extraction from approximately 60\,ms to under 5\,ms,
-enabling real-time WAF integration at production traffic volumes. A cross-dataset generalisation study
-on benchmarks such as the CSIC HTTP Dataset and real anonymised WAF logs would measure the
-transferability of CAXF representations beyond the Kaggle dataset and provide stronger evidence for
-deployment readiness. Finally, extending the current SHAP explainability framework toward
-counterfactual payload generation and automated WAF regex rule synthesis from top-ranked SHAP features
-represents a promising avenue to directly operationalise model explanations into active defences.
+Future research and deployment efforts for XSS Sentinel encompass several practical directions. Integrating an automated recursive canonicalization preprocessor to normalize nested URL, HTML-entity, and Base64 encodings prior to CAXF extraction would strengthen resilience against evasion techniques. Expanding the training corpus with dedicated client-side DOM injection payloads targeting modern JavaScript execution sinks (\texttt{innerHTML}, \texttt{document.write}, and \texttt{eval}) would address the sample scarcity identified in current public benchmarks. Furthermore, packaging the lightweight ensemble configurations (such as PCER with CharCNN) as inline reverse-proxy middleware (e.g., for Nginx or Envoy) would enable empirical benchmarking of inspection throughput, request latency, and false-positive rates on live HTTP traffic. Finally, compiling the tree ensembles and feature extraction routines to native C++ via runtimes such as Treelite or ONNX would deliver sub-millisecond CPU inference, facilitating high-throughput gateway deployment without requiring specialized hardware acceleration.
 
 %==========================================================================
 \bibliographystyle{plain}
