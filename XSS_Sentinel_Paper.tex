@@ -685,45 +685,61 @@ prediction weighted by its confidence score.
 \end{algorithm}
 
 \textbf{Weighted Soft Voting} computes an ensemble
-probability as a weighted average of base model probabilities, where weights are proportional to each
-model's macro-F1 on the training OOF fold:
+probability as a weighted average of base model probabilities, where weights are proportional to each model’s macro-F1 computed from its training-set OOF predictions:
 \begin{equation}
   P_{\text{wsv}}(y|\mathbf{x}) = \sum_{k=1}^{K} w_k P_k(y|\mathbf{x}), \quad
   w_k = \frac{F1_k^{\text{macro}}}{\sum_j F1_j^{\text{macro}}}
   \label{eq:wsv}
 \end{equation}
 
-\textbf{Class-Conditional Precision-Weighted Averaging (CPWA)} is a precision-weighted
-probability ensemble that assigns a separate model weight to each class. For each base model $k$
-and class $c$, the implementation first computes a Laplace-smoothed precision from in-sample
-training predictions:
+Bayesian Model Averaging (BMA)~\cite{hoeting1999} provides a related
+probabilistic framework in which predictions are combined according to
+posterior model probabilities. The ensemble method labelled BMA in this
+work instead implements a BMA-inspired, class-conditional
+precision-weighted probability-fusion strategy. For each class $c$, a
+Laplace-smoothed precision statistic is computed for each base classifier:
+
 \begin{equation}
-  q_{kc}=\frac{TP_{kc}+1}{TP_{kc}+FP_{kc}+C},\qquad
-  w_{kc}=\frac{q_{kc}}{\sum_j q_{jc}},\qquad C=4,
-  \label{eq:cpwa_weights}
+q_{kc} =
+\frac{TP_{kc}+1}{TP_{kc}+FP_{kc}+C},
 \end{equation}
-where $TP_{kc}$ and $FP_{kc}$ are the training-set true-positive and false-positive counts for
-model $k$ on class $c$. The ensemble probability is then
+
+where $C=4$ is the number of classes. The class-specific weights are then
+normalized across the $K=3$ base classifiers:
+
 \begin{equation}
-  P_{\text{cpwa}}(y{=}c|\mathbf{x})=\sum_{k=1}^{K} w_{kc}P_k(c|\mathbf{x}).
-  \label{eq:cpwa}
+w_{kc} =
+\frac{q_{kc}}{\sum_{j=1}^{K}q_{jc}}.
 \end{equation}
-Thus, CPWA is a class-conditional precision-weighted averaging heuristic, not standard Bayesian
-Model Averaging.
+
+The resulting ensemble probability is
+
+\begin{equation}
+P_{\mathrm{BMA}}(y=c|x)
+=
+\sum_{k=1}^{K}w_{kc}P_k(c|x).
+\end{equation}
+
+Thus, although the implementation retains the BMA label for consistency
+with the experimental code and result artifacts, it should be interpreted
+as a precision-weighted, BMA-inspired probability-fusion strategy rather
+than classical Bayesian Model Averaging based on posterior model
+probabilities.
 
 \textbf{Stacking}~\cite{wolpert1992} concatenates all base model probability
 vectors into a meta-feature $\mathbf{z}(\mathbf{x}) = [P_1(\mathbf{x})\|P_2(\mathbf{x})\|P_3(\mathbf{x})]
-\in \mathbb{R}^{KC}$, on which a logistic-regression meta-learner is trained using 5-fold OOF
-predictions from the training set, then applied at test time.
+\in \mathbb{R}^{KC}$, A logistic-regression meta-learner is trained using 5-fold OOF
+predictions from the training set and is subsequently applied to the test-set base predictions.
 
-\textbf{Per-Class Expert Routing} identifies, for each class $c$, the
-base model with highest training-set precision. The precision matrix is computed from in-sample
+\textbf{Per-Class Expert Routing} (PCER) identifies, for each class $c$, the
+base model with the highest class-specific precision estimated from in-sample predictions on the training set. The precision matrix is computed from in-sample
 predictions of the fitted base models on the training set:
 \begin{equation}
   E(c) = \arg\max_k \text{prec}_{kc}, \quad
   c_{\text{cons}} = \arg\max_c \tfrac{1}{K}\textstyle\sum_k P_k(c|\mathbf{x})
   \label{eq:pcer_expert}
 \end{equation}
+These precision statistics are computed from the training data only and do not use test-set labels; however, because they are estimated from in-sample predictions, they may be optimistic.
 A routing threshold $\tau=0.5$ governs whether to trust the expert's confidence or fall back to a
 precision-weighted vote:
 \begin{equation}
@@ -761,11 +777,10 @@ disagreement among base models via Jensen-Shannon Divergence:
   D = \frac{1}{\binom{K}{2}}\sum_{i<j}\text{JSD}(P_i\|P_j)
   \label{eq:ccds_D}
 \end{equation}
-Three routing strategies with thresholds $\theta_\ell{=}0.05$ and $\theta_h{=}0.15$ are applied:
-when $D < \theta_\ell$, the models agree and an inverse-entropy weighted soft vote is used; when
-$\theta_\ell \leq D \leq \theta_h$, the outlier model is dropped and a soft vote over the remaining
-two is applied; when $D > \theta_h$, the lowest-entropy (most confident) model acts as the sole
-authority with a soft-vote fallback.
+CCDS uses two disagreement thresholds $\theta_\ell{=}0.05$ and $\theta_h{=}0.15$.
+For low disagreement $D < \theta_\ell$, predictions are combined using inverse-entropy weighting. 
+For intermediate disagreement $\theta_\ell \leq D \leq \theta_h$, the model with the highest mean pairwise JSD is treated as the outlier and excluded from the subsequent inverse-entropy weighted vote. 
+For high disagreement $D > \theta_h$, the lowest-entropy model is selected as the authority; if its confidence is below $0.5$, the method falls back to inverse-entropy weighted voting.
 
 %--------------------------------------------------------------------------
 \subsection{Experiments}
@@ -799,11 +814,11 @@ LightGBM and XGBoost, producing 4,756 samples per class and a total of 19,024
 training instances. CatBoost is instead trained on the original 7,641
 training samples using class-weighted loss.
 
-Fixed model configurations were used for all experiments, and no systematic hyperparameter optimization was performed. 
+Fixed model configurations were used for all experiments, and no systematic hyperparameter optimization was performed. The configurations were kept unchanged across the experimental comparisons and are reported for reproducibility rather than as claimed optimal settings.
+
 In particular, LightGBM and XGBoost were used with the configurations specified in the implementation, CatBoost uses 100 iterations, learning rate 0.1,
 depth 4, and \texttt{random\_seed=42}, rather than the library defaults. The CharCNN and MiniLM models are used as frozen feature
-extractors, as described in Section~5.2.2. These settings are reported for reproducibility and are not claimed to be optimal.
-
+extractors, as described in Section~5.2.2. 
 For ensemble construction, Stacking uses 5-fold out-of-fold (OOF) predictions
 to train its logistic-regression meta-learner, while Strict LCCDE uses 3-fold
 OOF predictions for class-leader identification. PCER uses a routing
@@ -860,9 +875,9 @@ effectiveness of class-weighting vs.\ SMOTE at these feature dimensionalities.
 \textbf{Six-Ensemble Comparison.}
 Table~\ref{tab:ensembles} and Figure~\ref{fig:macro_f1_ensemble_comparison} report the macro-F1 for all six ensemble strategies across the three
 feature representations (evidence: \texttt{results/caxf\_*\_results/ensemble\_comparison\_seed\_42.txt}).
-The ensemble methods do not uniformly outperform the strongest individual base classifier.
+Ensemble performance varies across feature representations and decision strategies, and the ensembles do not uniformly outperform the strongest individual base classifier.
 For TF-IDF and CharCNN, Stacking leads among the ensemble strategies (95.30\% and 95.28\%,
-respectively), while CPWA, PCER, and WSV jointly lead for SentEmb (95.98\% each). However,
+respectively), while BMA, PCER, and WSV jointly achieve the highest macro-F1 for SentEmb (95.98\% each). However,
 SentEmb+XGBoost achieves a higher standalone macro-F1 of 97.67\%, exceeding all SentEmb ensembles.
 
 \begin{table}[ht]
@@ -1030,8 +1045,7 @@ correctly (78\% recall) but with zero false positives (precision=1.00).
 \subsubsection{Findings / Discussions (Inference)}
 
 Stacking is the best-performing ensemble for TF-IDF (macro-F1 95.30\%) and CharCNN (macro-F1
-95.28\%), ranking first in both columns of Table~\ref{tab:ensembles} and highlighted visually in Figure~\ref{fig:macro_f1_ensemble_comparison}. The 5-fold OOF meta-learner
-succeeds because it can learn that LightGBM's probability distributions are more reliable for
+95.28\%), ranking first in both columns of Table~\ref{tab:ensembles} and highlighted visually in Figure~\ref{fig:macro_f1_ensemble_comparison}. The strong performance of Stacking on TF-IDF and CharCNN suggests that the OOF-trained meta-learner can exploit complementary information in the probability distributions of the heterogeneous base classifiers. for
 rare classes while XGBoost's are more precise for majority classes, effectively combining the
 complementary strengths of the three base classifiers. On TF-IDF features, Stacking achieves
 DOM recall of 89\% and Stored recall of 99\%, both the highest among all TF-IDF configurations.
@@ -1072,16 +1086,14 @@ tradeoff: 99.66\% accuracy, 94.87\% macro-F1, 0.21~s inference.
 \end{itemize}
 
 CPWA, PCER, and WSV jointly dominate with Sentence Embeddings, all reaching 95.98\% macro-F1 and
-99.29\% macro-precision---the highest precision across all 18 experiments. The 666-dim semantic
-feature space produces near-perfect consensus among the three base models: since all three agree
-with high confidence on most test samples, weighted-averaging strategies that balance their
+99.29\% macro-precision---the highest precision across all 18 experiments. The strong performance of BMA, PCER, and WSV with Sentence Embeddings indicates that probability fusion is effective for this representation under the evaluated test split.
+Since all three agree with high confidence on most test samples, weighted-averaging strategies that balance their
 contributions are more appropriate than expert-routing or meta-learning, which offer the most
 benefit when base classifiers disagree significantly.
 
-CCDS underperforms on CharCNN (92.60\%), well below the LCCDE baseline (94.72\%). This occurs
-because the 410-dim CharCNN space generates higher pairwise JSD values, triggering the
-authority-fallback branch too frequently and over-concentrating prediction mass on the lowest-entropy
-model. The CCDS threshold pair ($\theta_\ell=0.05$, $\theta_h=0.15$) is calibrated for the
+CCDS underperforms on CharCNN (92.60\%), well below the LCCDE baseline (94.72\%). The observed underperformance is consistent with the CCDS routing mechanism being triggered differently in the CharCNN feature space; 
+the evaluated thresholds may therefore be less suitable for this representation.
+The CCDS threshold pair ($\theta_\ell=0.05$, $\theta_h=0.15$) is calibrated for the
 higher-dimensional feature spaces and requires recalibration for CharCNN. On TF-IDF and SentEmb,
 CCDS performs competitively (95.22\% and 95.90\% respectively).
 
