@@ -78,7 +78,7 @@ ensemble decision strategies evaluated across three feature representations.
 The novelty lies in a structured six-component CAXF feature concatenation covering HTML-structural,
 JavaScript-event, URL-pattern, special-character, keyword, and deep-embedding features; a reimplemented
 \textit{Strict LCCDE} using out-of-fold (OOF) cross-validation for class-leader identification instead
-of heuristic selection; and four ensemble strategies---Weighted Soft Voting (WSV), Class-Conditional Precision-Weighted Averaging (CPWA), Per-Class Expert Routing (PCER), and Confidence-Calibrated Dynamic Selection
+of heuristic selection; and four ensemble strategies---Weighted Soft Voting (WSV), Bayesian Model Averaging (BMA), Per-Class Expert Routing (PCER), and Confidence-Calibrated Dynamic Selection
 (CCDS)---alongside Stacking with a logistic-regression meta-learner.
 Experiments are conducted on a publicly available Kaggle XSS dataset comprising 10,917 payloads
 across four classes: Normal (3,594), Reflected XSS (6,795), Stored XSS (498), and DOM-based XSS (30).
@@ -86,7 +86,7 @@ A 70:30 stratified split (seed=42) yields 7,641 training and 3,276 test samples;
 training classes to 4,756 samples each. Three CAXF instantiations are evaluated: TF-IDF character
 n-gram (5,282-dim), Character-level CNN (410-dim), and all-MiniLM-L6-v2 sentence embedding (666-dim),
 with evaluation metrics including macro-averaged Precision, Recall, and F1-score. Stacking with
-CAXF+TF-IDF achieves the best macro-F1 of 95.30\% at 99.69\% accuracy; CPWA/PCER/WSV with
+CAXF+TF-IDF achieves the best macro-F1 of 95.30\% at 99.69\% accuracy; BMA/PCER/WSV with
 CAXF+Sentence Embedding achieve macro-precision of 99.29\% and macro-F1 of 95.98\%. An ablation
 confirms that Strict LCCDE outperforms the MVE-CT variant on TF-IDF by 1.09 percentage points;
 all five proposed ensembles outperform LCCDE on at least one feature representation, compared against
@@ -211,7 +211,7 @@ The remainder of this paper is organised as follows. Section~\ref{sec:prelim} es
 
   % COL 6 — Ensemble
   \node[stageheader, right=20mm of h5]         (h6)  {Ensemble};
-  \node[ebox, below=5mm  of h6]                (ens) {LCCDE / WSV / CPWA\\Stacking / PCER / CCDS};
+  \node[ebox, below=5mm  of h6]                (ens) {LCCDE / WSV / BMA\\Stacking / PCER / CCDS};
 
   % COL 7 — Output
   \node[stageheader, right=20mm of h6]         (h7)  {Output};
@@ -451,7 +451,7 @@ rare-class detection for DOM-based and Stored XSS, where misclassifications carr
 cost. The second is to evaluate three CAXF feature representations---character n-gram TF-IDF, Character-
 level CNN, and MiniLM sentence embeddings---and determine which feature space best supports each
 ensemble strategy, rather than committing to a single representation. The third is to systematically
-compare six ensemble decision strategies (Strict LCCDE, WSV, CPWA, Stacking, PCER, CCDS) against
+compare six ensemble decision strategies (Strict LCCDE, WSV, BMA, Stacking, PCER, CCDS) against
 the LCCDE baseline and individual base classifiers across all three feature spaces, using macro-averaged
 Precision, Recall, and F1-score as primary evaluation metrics. The fourth is to conduct an ablation
 study that evaluates whether OOF-based class-leader identification (Strict LCCDE)
@@ -888,7 +888,7 @@ SentEmb+XGBoost achieves a higher standalone macro-F1 of 97.67\%, exceeding all 
 \textbf{Ensemble} & \textbf{TF-IDF} & \textbf{CharCNN} & \textbf{SentEmb} & \textbf{Best} \\
 \midrule
 Stacking     & \textbf{0.9530} & \textbf{0.9528} & 0.9591 & TF-IDF \\
-CPWA         & 0.9521 & 0.9478 & \textbf{0.9598} & SentEmb \\
+BMA         & 0.9521 & 0.9478 & \textbf{0.9598} & SentEmb \\
 PCER         & 0.9521 & 0.9487 & \textbf{0.9598} & SentEmb \\
 WSV          & 0.9521 & 0.9478 & \textbf{0.9598} & SentEmb \\
 CCDS         & 0.9522 & 0.9260 & 0.9590 & SentEmb \\
@@ -907,9 +907,9 @@ LCCDE (base) & 0.9472 & 0.9472 & 0.9580 & SentEmb \\
 \textbf{Full Metrics for All Configurations.}
 Table~\ref{tab:fullmetrics} and Figure~\ref{fig:full_metrics_heatmap} provide the complete metric profile---accuracy, macro-precision,
 macro-recall, macro-F1, and inference time---for all eighteen configurations. Stacking+TF-IDF
-leads on macro-recall (96.76\%), while CPWA/PCER/WSV+SentEmb lead on macro-precision (99.29\%).
+leads on macro-recall (96.76\%), while BMA/PCER/WSV+SentEmb lead on macro-precision (99.29\%).
 CCDS+TF-IDF is the slowest at 2.97\,s due to pairwise JSD computation over the 5,282-dim space;
-Stacking and CPWA+CharCNN are the fastest at 0.08\,s.
+Stacking and BMA+CharCNN are the fastest at 0.08\,s.
 
 \begin{table}[ht]
 \centering
@@ -923,7 +923,7 @@ Stacking and CPWA+CharCNN are the fastest at 0.08\,s.
 \multirow{6}{*}{TF-IDF}
   & Stacking     & 99.69\% & 93.97\% & 96.76\% & 95.30\% & 0.41 \\
   & CCDS         & 99.66\% & 93.97\% & 96.59\% & 95.22\% & 2.97 \\
-  & CPWA         & 99.66\% & 94.10\% & 96.44\% & 95.21\% & 0.81 \\
+  & BMA         & 99.66\% & 94.10\% & 96.44\% & 95.21\% & 0.81 \\
   & PCER         & 99.66\% & 94.10\% & 96.44\% & 95.21\% & 0.31 \\
   & WSV          & 99.63\% & 94.10\% & 96.44\% & 95.21\% & 0.45 \\
   & LCCDE        & 99.60\% & 95.62\% & 93.98\% & 94.72\% & 0.21 \\
@@ -931,13 +931,13 @@ Stacking and CPWA+CharCNN are the fastest at 0.08\,s.
 \multirow{6}{*}{CharCNN}
   & Stacking     & 99.42\% & 97.38\% & 93.99\% & 95.28\% & 0.08 \\
   & PCER         & 99.66\% & 96.35\% & 93.55\% & 94.87\% & 0.21 \\
-  & CPWA         & 99.63\% & 96.18\% & 93.53\% & 94.78\% & 0.08 \\
+  & BMA         & 99.63\% & 96.18\% & 93.53\% & 94.78\% & 0.08 \\
   & WSV          & 99.63\% & 96.18\% & 93.53\% & 94.78\% & 0.08 \\
   & LCCDE        & 99.60\% & 95.62\% & 93.98\% & 94.72\% & 0.21 \\
   & CCDS         & 99.57\% & 91.67\% & 93.64\% & 92.60\% & 1.78 \\
 \midrule
 \multirow{6}{*}{SentEmb}
-  & CPWA         & 99.63\% & 99.29\% & 93.38\% & 95.98\% & 0.11 \\
+  & BMA         & 99.63\% & 99.29\% & 93.38\% & 95.98\% & 0.11 \\
   & PCER         & 99.63\% & 99.29\% & 93.38\% & 95.98\% & 0.22 \\
   & WSV          & 99.63\% & 99.29\% & 93.38\% & 95.98\% & 0.09 \\
   & Stacking     & 99.66\% & 98.28\% & 94.29\% & 95.91\% & 0.09 \\
@@ -970,7 +970,7 @@ additional correctly classified DOM sample.
 \midrule
 Stacking  & 0.84 & 1.00 & 1.00 & 0.97 \\
 CCDS      & 0.84 & 1.00 & 1.00 & 0.97 \\
-CPWA       & 0.84 & 1.00 & 1.00 & 0.97 \\
+BMA       & 0.84 & 1.00 & 1.00 & 0.97 \\
 PCER      & 0.84 & 1.00 & 1.00 & 0.97 \\
 WSV       & 0.84 & 1.00 & 1.00 & 0.97 \\
 LCCDE     & 0.82 & 1.00 & 1.00 & 0.97 \\
@@ -1010,11 +1010,11 @@ SentEmb & 0.9580 & 0.8750 & 0.9580 & 0.8750 & $+0.00\%$  & Tie \\
 
 \textbf{Confusion Matrices for the Best Models.}
 Figure~\ref{fig:cm_best} presents the confusion matrices for the two top-performing configurations:
-Stacking with CAXF+TF-IDF (Figure~\ref{fig:cm_stacking_tfidf}, best overall macro-F1: 95.30\%, accuracy: 99.69\%) and CPWA with
+Stacking with CAXF+TF-IDF (Figure~\ref{fig:cm_stacking_tfidf}, best overall macro-F1: 95.30\%, accuracy: 99.69\%) and BMA with
 CAXF+Sentence Embedding (Figure~\ref{fig:cm_bma_sentemb}, best macro-precision: 99.29\%, macro-F1: 95.98\%). Both matrices confirm
 that Normal and Reflected XSS are classified perfectly, while DOM-based XSS---with only 9 test
 samples---is the primary source of residual error. Stacking+TF-IDF (Figure~\ref{fig:cm_stacking_tfidf}) correctly classifies 8 of 9
-DOM samples (89\% recall) with 1 false positive, while CPWA+SentEmb (Figure~\ref{fig:cm_bma_sentemb}) classifies 7 of 9 DOM samples
+DOM samples (89\% recall) with 1 false positive, while BMA+SentEmb (Figure~\ref{fig:cm_bma_sentemb}) classifies 7 of 9 DOM samples
 correctly (78\% recall) but with zero false positives (precision=1.00).
 
 \begin{figure}[ht]
@@ -1029,12 +1029,12 @@ correctly (78\% recall) but with zero false positives (precision=1.00).
 \begin{subfigure}[b]{0.48\textwidth}
   \centering
   \includegraphics[width=\textwidth]{figures/bma_sentemb_cm.png}
-  \caption{CPWA + CAXF+SentEmb\\Macro-F1: 95.98\%, Macro-Prec: 99.29\%}
+  \caption{BMA + CAXF+SentEmb\\Macro-F1: 95.98\%, Macro-Prec: 99.29\%}
   \label{fig:cm_bma_sentemb}
 \end{subfigure}
 \caption{Confusion matrices for the two best-performing models (seed=42, test $n{=}3{,}276$).
          \textbf{(a)}~Stacking+TF-IDF achieves the best overall macro-F1 with the highest recall on
-         DOM-based XSS (89\%). \textbf{(b)}~CPWA+SentEmb achieves the highest macro-precision (99.29\%)
+         DOM-based XSS (89\%). \textbf{(b)}~BMA+SentEmb achieves the highest macro-precision (99.29\%)
          with perfect DOM precision (1.00). Classes: D=DOM-based XSS (9), N=Normal (1,079),
          R=Reflected XSS (2,039), S=Stored XSS (149).}
 \label{fig:cm_best}
@@ -1064,12 +1064,12 @@ DOM-based XSS (9 test samples) is the most challenging class. With only
 21 original training samples, SMOTE diversity is limited. Best DOM F1
 scores: TF-IDF: 0.84 (all novel ensembles vs.\ 0.82 for LCCDE);
 CharCNN: 0.88 (Stacking, with perfect DOM precision = 1.00);
-SentEmb: 0.88 (CPWA/PCER/WSV/Stacking/CCDS/LCCDE, precision = 1.00).
+SentEmb: 0.88 (BMA/PCER/WSV/Stacking/CCDS/LCCDE, precision = 1.00).
 Stacking with CharCNN achieves zero DOM false positives, preferred for
 deployments where DOM XSS false alarms are costly.
 
 \paragraph{Computational Efficiency}
-Inference time on 3,276 test samples: Stacking/CPWA/WSV+CharCNN is fastest
+Inference time on 3,276 test samples: Stacking/BMA/WSV+CharCNN is fastest
 (0.08~s); CCDS+TF-IDF is slowest (2.97~s) due to pairwise JSD computation
 over 5,282-dimensional distributions. CAXF extraction overhead: TF-IDF
 17--18~s, CharCNN 9--23~s, SentEmb 177--228~s (CPU-only MiniLM inference).
@@ -1078,13 +1078,13 @@ tradeoff: 99.66\% accuracy, 94.87\% macro-F1, 0.21~s inference.
 
 \paragraph{Ensemble Strategy Selection Guide}
 \begin{itemize}
-  \item \textbf{Maximum macro-F1}: Stacking+TF-IDF (0.9530) or CPWA/WSV+SentEmb (0.9598)
+  \item \textbf{Maximum macro-F1}: Stacking+TF-IDF (0.9530) or BMA/WSV+SentEmb (0.9598)
   \item \textbf{Maximum DOM precision}: Stacking+CharCNN or any+SentEmb (1.00)
-  \item \textbf{Fastest inference}: Stacking/CPWA/WSV+CharCNN (0.08~s)
+  \item \textbf{Fastest inference}: Stacking/BMA/WSV+CharCNN (0.08~s)
   \item \textbf{Principled uncertainty}: CCDS (at cost of inference speed)
 \end{itemize}
 
-CPWA, PCER, and WSV jointly dominate with Sentence Embeddings, all reaching 95.98\% macro-F1 and
+BMA, PCER, and WSV jointly dominate with Sentence Embeddings, all reaching 95.98\% macro-F1 and
 99.29\% macro-precision---the highest precision across all 18 experiments. The strong performance of BMA, PCER, and WSV with Sentence Embeddings indicates that probability fusion is effective for this representation under the evaluated test split.
 Since all three agree with high confidence on most test samples, weighted-averaging strategies that balance their
 contributions are more appropriate than expert-routing or meta-learning, which offer the most
@@ -1300,7 +1300,7 @@ XSS Sentinel demonstrates that combining the CAXF feature extraction pipeline wi
 ensemble decision strategies substantially advances multi-class XSS detection. Across 18 experimental
 configurations (6 ensembles $\times$ 3 feature representations), most ensemble configurations
 outperform the LCCDE baseline; the exception is CCDS with CharCNN: Stacking with CAXF+TF-IDF achieves 95.30\% macro-F1 ($+$0.58~pp
-over LCCDE); CPWA/PCER/WSV with CAXF+SentEmb achieve 99.29\% macro-precision and 95.98\% macro-F1
+over LCCDE); BMA/PCER/WSV with CAXF+SentEmb achieve 99.29\% macro-precision and 95.98\% macro-F1
 ($+$0.18~pp); Strict LCCDE with OOF leader identification outperforms the heuristic MVE-CT by 1.09~pp
 on TF-IDF features. All five proposed ensemble strategies improve upon LCCDE on at least one feature
 representation, and the confusion matrices confirm near-perfect classification of Normal and Reflected
@@ -1312,7 +1312,7 @@ XSS Sentinel offers multi-granularity feature fusion through CAXF, simultaneousl
 structural, syntactic, and semantic payload properties that remain robust to common obfuscation
 transforms including HTML entity encoding and JavaScript string splitting. The framework provides
 ensemble diversity through six complementary decision strategies spanning the decision spectrum from
-hard rule-based LCCDE to precision-weighted CPWA to meta-learned
+hard rule-based LCCDE to precision-weighted BMA to meta-learned
 Stacking to confidence-adaptive CCDS. Rare-class awareness is built in via SMOTE augmentation and
 CatBoost class weighting, ensuring that DOM-based XSS receives meaningful gradient signal even with
 only 21 training samples; PCER+CharCNN delivers 99.66\% accuracy with only 0.21\,s inference,
@@ -1333,9 +1333,9 @@ been verified. CPU-only MiniLM SentEmb extraction takes 177 to 228 seconds per r
 impractical for high-throughput real-time scanning without GPU acceleration. The framework has not
 been evaluated against adversarially crafted XSS payloads specifically designed to evade ML-based
 detectors. CCDS with CharCNN underperforms the LCCDE baseline (92.60\% vs.\ 94.72\%) due to
-JSD-based routing miscalibration in the 410-dim space, requiring threshold re-tuning. Finally, CPWA and WSV compute their model weights once from training-set statistics and do not adapt
+JSD-based routing miscalibration in the 410-dim space, requiring threshold re-tuning. Finally, BMA and WSV compute their model weights once from training-set statistics and do not adapt
 to distributional shift that may occur between training time and deployment. In addition, the
-precision statistics used by CPWA and PCER are computed from in-sample training predictions rather
+precision statistics used by BMA and PCER are computed from in-sample training predictions rather
 than out-of-fold or held-out validation predictions; this may make the estimated precision weights
 and expert assignments optimistic.
 
