@@ -70,7 +70,7 @@
 \begin{abstract}
 \noindent
 Cross-Site Scripting (XSS) is one of the most persistently exploited web attack vectors, yet
-fine-grained multi-class XSS classification---distinguishing Reflected, Stored, and DOM-based XSS
+fine-grained multi-class XSS classification distinguishing ---Reflected, Stored, and DOM-based XSS
 from benign payloads---remains underexplored due to severe class imbalance and payload obfuscation.
 This paper proposes \textbf{XSS Sentinel}, a framework that combines the
 Contextual-Adversarial Cross-Feature (CAXF) extraction pipeline with six heterogeneous
@@ -387,10 +387,7 @@ posterior model probabilities. The ensemble method labelled BMA in the
 experimental implementation of XSS Sentinel is instead a BMA-inspired,
 class-conditional precision-weighted probability-fusion strategy. It derives
 class-specific model weights from training-set precision statistics rather
-than estimating posterior probabilities of competing models. The BMA label is
-retained for consistency with the implementation and experimental artifacts;
-the method should therefore not be interpreted as classical Bayesian Model
-Averaging.
+than estimating posterior probabilities of competing models. 
 
 For highly imbalanced classification problems, per-class routing provides
 another alternative to global probability averaging. The proposed PCER
@@ -424,10 +421,7 @@ classifiers to operate under different imbalance-mitigation strategies.
 \label{sec:problem}
 %==========================================================================
 
-This section formally specifies the inputs available to the system, the constraints under which
-it operates, and the precise objectives it must satisfy. A clear problem statement is necessary to
-distinguish this work from binary XSS detection, to justify the design of the CAXF pipeline, and to
-define the experimental evaluation criteria used in Section~\ref{sec:proposed}.
+This section formally defines the inputs available to the system, the operational constraints, and the precise evaluation objectives satisfied by the CAXF pipeline as discussed in Section~\ref{sec:proposed}.
 
 \subsection{Given (Inputs and Assumptions)}
 
@@ -449,7 +443,9 @@ making its detection particularly challenging.
 \subsection{Objective}
 
 The objective of this work is to construct a multi-class classification model using structured feature
-extraction using CAXF (Contextual Adversarial Cross-Feature Extraction) with TF-IDF N-Grams, Character-Level CNN, and MiniLM Sentence Embeddings and heterogeneous ensemble decision strategies, targeting four simultaneous goals. The first
+extraction using CAXF (Contextual Adversarial Cross-Feature Extraction) with TF-IDF N-Grams, Character-Level CNN, and MiniLM Sentence Embeddings and heterogeneous ensemble decision strategies, targeting five simultaneous goals. 
+
+The first
 is to accurately classify each web payload into one of the four XSS categories with special emphasis on
 rare-class detection for DOM-based and Stored XSS, where misclassifications carry the highest security
 cost. The second is to evaluate three CAXF feature representations---character n-gram TF-IDF, Character-
@@ -511,24 +507,25 @@ the complete class-wise split statistics alongside the post-SMOTE balanced train
 
 Preprocessing in XSS Sentinel operates at two complementary levels: structural parsing of the raw
 payload text into engineered feature sub-vectors, and deep-embedding encoding that maps each payload
-into a dense representation learned by a neural model. The five structural sub-extractors are shared
-across all three CAXF variants and produce 282 common features; only the deep-embedding component
-changes between the TF-IDF, CharCNN, and MiniLM instantiations.
+into a dense representation learned by a neural model.  
+
+The structural profiling is executed via five distinct sub-extractors: 
+\textit{HTML Tags}, \textit{JS Events}, \textit{URL Features}, \textit{Special Characters}, and \textit{Keywords}. 
+These five components are shared across all three CAXF variants and collectively yield a $282$-dimensional common feature vector. 
+Conversely, the deep-embedding component varies adaptively depending on whether the system utilizes the TF-IDF, CharCNN, or MiniLM instantiation.
 
 \subsubsection{Structural Sub-Extractors}
+As outlined above, the structural sub-extractors isolate specific syntactical and semantic attributes from the raw input string to build the static feature vector:
 
-The HTML Tags extractor uses BeautifulSoup to parse each payload and count
-occurrences of each HTML tag in a fixed vocabulary. The JS Events extractor  computes frequency counts of JavaScript event handler keywords such as \texttt{onerror},
-\texttt{onload}, and \texttt{onclick}. The URL Features extractor 
-produces binary and count-based encodings of URL structural attributes, including scheme presence,
-path depth, query parameter count, and fragment indicator. The Special Characters extractor
- records frequency counts of characters that are particularly significant
-for XSS payloads, namely \texttt{<}, \texttt{>}, \texttt{/}, \texttt{`}, \texttt{"}, \texttt{'},
-\texttt{(}, \texttt{)}, \texttt{\%}, and \texttt{\&}. The Keywords extractor 
-applies binary match indicators against a curated XSS-relevant keyword list including terms such as
-\texttt{script}, \texttt{alert}, \texttt{eval}, and \texttt{document.cookie}. All five extractors
-are fit exclusively on the training corpus and then applied identically to the test set, preventing
-any form of data leakage.
+\begin{itemize}
+    \item \textbf{HTML Tags Extractor:} Uses the \texttt{BeautifulSoup} library to parse each payload and compute frequency counts of HTML tags against a fixed vocabulary.
+    \item \textbf{JS Events Extractor:} Computes frequency counts of critical JavaScript event handler keywords such as \texttt{onerror}, \texttt{onload}, and \texttt{onclick}.
+    \item \textbf{URL Features Extractor:} Produces binary and count-based encodings of URL structural attributes, including scheme presence, path depth, query parameter counts, and fragment indicators.
+    \item \textbf{Special Characters Extractor:} Records frequency counts of characters that are highly indicative of XSS payloads, specifically \texttt{<}, \texttt{>}, \texttt{/}, \texttt{`}, \texttt{"}, \texttt{'}, \texttt{(}, \texttt{)}, \texttt{\%}, and \texttt{\&}.
+    \item \textbf{Keywords Extractor:} Applies binary match indicators against a curated XSS-relevant keyword list, scanning for terms such as \texttt{script}, \texttt{alert}, \texttt{eval}, and \texttt{document.cookie}.
+\end{itemize}
+To ensure rigorous validation and prevent any form of data leakage, all five extractors are fit exclusively on the training corpus and subsequently applied identically to the evaluation sets.
+
 
 \subsubsection{Deep Embedding Variants}
 
@@ -694,7 +691,7 @@ probability as a weighted average of base model probabilities, where weights are
   \label{eq:wsv}
 \end{equation}
 
-Bayesian Model Averaging (BMA)~\cite{hoeting1999} provides a related
+\textbf{Bayesian Model Averaging (BMA)}~\cite{hoeting1999} provides a related
 probabilistic framework in which predictions are combined according to
 posterior model probabilities. The ensemble method labelled BMA in this
 work instead implements a BMA-inspired, class-conditional
@@ -733,7 +730,7 @@ vectors into a meta-feature $\mathbf{z}(\mathbf{x}) = [P_1(\mathbf{x})\|P_2(\mat
 \in \mathbb{R}^{KC}$, A logistic-regression meta-learner is trained using 5-fold OOF
 predictions from the training set and is subsequently applied to the test-set base predictions.
 
-\textbf{Per-Class Expert Routing} (PCER) identifies, for each class $c$, the
+\textbf{Per-Class Expert Routing (PCER)} identifies, for each class $c$, the
 base model with the highest class-specific precision estimated from in-sample predictions on the training set. The precision matrix is computed from in-sample
 predictions of the fitted base models on the training set:
 \begin{equation}
@@ -1108,13 +1105,6 @@ test-time performance, which in turn depends on the feature representation's var
 All five novel ensemble strategies improve upon LCCDE on at least one feature representation,
 confirming the core hypothesis that probabilistic and adaptive decision strategies add value over
 fixed leader-confidence rules.
-
-The end-to-end XSS Sentinel pipeline is shown in Figure~\ref{fig:pipeline}, presented
-after the Introduction for reader orientation. Seven stages are illustrated: raw payload
-input $\to$ CAXF feature extraction (five structural sub-extractors plus TF-IDF, CharCNN,
-and MiniLM backends) $\to$ three CAXF feature vectors $\to$ SMOTE oversampling $\to$
-three gradient-boosting base classifiers $\to$ six ensemble decision strategies $\to$
-four-class XSS prediction output.
 
 %--------------------------------------------------------------------------
 \subsection{Explainability and Feature Attribution (SHAP Analysis)}
